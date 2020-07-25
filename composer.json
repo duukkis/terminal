@@ -1,0 +1,15 @@
+{
+    "name": "ttyrec/terminal",
+    "require": {
+        "php": "7.4.*"
+    },
+    "authors": [
+        {
+            "name": "duukkis",
+            "email": "duukkis@hotmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {"Terminal\\": "src/Terminal/"}
+    }
+}
