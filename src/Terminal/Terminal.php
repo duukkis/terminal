@@ -40,12 +40,26 @@ class Terminal {
         return $this->screens;
     }
 
-    public function printScreens(int $timeoutInMicros = 100000)
+    /**
+     * @param bool $actual - run with actual timestamps
+     * @param int $timeoutInMicros - constant delay between frames quarter of a second
+     */
+    public function printScreens(bool $actual = false, int $timeoutInMicros = 250000)
     {
+        $prevScreen = null;
         /** @var Screen $screen */
         foreach ($this->screens as $screen) {
-            print ($screen->screen);
+            if ($actual && null !== $prevScreen) {
+                $timeoutInMicros = $this->calculateDiffBetweenScreens($screen, $prevScreen);
+            }
             usleep($timeoutInMicros);
+            print ($screen->screen);
+            $prevScreen = $screen;
         }
+    }
+
+    private function calculateDiffBetweenScreens(Screen $screen, Screen $previousScreen)
+    {
+        return (1000000 * ($screen->sec - $previousScreen->sec)) + ($screen->usec - $previousScreen->usec);
     }
 }

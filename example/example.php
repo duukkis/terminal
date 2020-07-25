@@ -6,15 +6,22 @@ use Terminal\Interpret;
 use Terminal\Screen;
 
 
-//print chr(0x1B).'[?1049h';
-//die();
 $file = __DIR__."/game.ttyrec";
 $terminal = new Terminal($file);
 
-$screens = $terminal->getScreens();
-/** @var Screen $screen */
-foreach ($screens as $screen) {
-    print_r($screen->getCommands());
+if (true) {
+    // speedy gonzales
+    $terminal->printScreens(false, 1000);
+    // quarter of a second delay between frames
+    $terminal->printScreens();
+    // with actual delay coded in ttyrec file
+    $terminal->printScreens(true);
 }
-//$terminal->printScreens();
 
+if (false) {
+    $screens = $terminal->getScreens();
+    /** @var Screen $screen */
+    foreach ($screens as $screen) {
+        print_r($screen->getCommands());
+    }
+}
