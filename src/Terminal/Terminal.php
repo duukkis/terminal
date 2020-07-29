@@ -2,10 +2,31 @@
 
 namespace Terminal;
 
+use Terminal\Commands\ClearLineFromRightCommand;
+use Terminal\Commands\ClearScreenCommand;
+use Terminal\Commands\ClearScreenFromCursorCommand;
+use Terminal\Commands\ColorCommand;
+use Terminal\Commands\Command;
+use Terminal\Commands\CursorMoveCommand;
+use Terminal\Commands\IgnoreCommand;
+use Terminal\Commands\MoveArrowCommand;
+use Terminal\Commands\MoveCursorHomeCommand;
+use Terminal\Commands\OutputCommand;
+use Terminal\Commands\ReverseVideoCommand;
+
 class Terminal {
 
     private array $screens = [];
-    private array $cursorPos = ["x" => 0, "y" => 0];
+    // parsing related variables
+    const NEWLINE = "\n";
+    const TAB = "\t";
+    // console array with TerminalRows / row index
+    private array $console = [];
+    // current cursor position
+    private int $cursorRow = 0;
+    private int $cursorCol = 0;
+    private int $tabWidth = 8;
+    private string $tabString = "";
 
     public function __construct(?string $file = null)
     {
@@ -15,6 +36,7 @@ class Terminal {
                 $this->parseScreens($data);
             }
         }
+        $this->setTab();
     }
 
     /**
@@ -27,16 +49,18 @@ class Terminal {
             $data = unpack('Vsec/Vusec/Vlen', $contents);
             $contents = substr($contents, 12);
             $screen = substr($contents, 0, $data["len"]);
-            $this->setScreen($data["sec"], $data["usec"], $data["len"], $screen);
+            $this->setScreen((int) $data["sec"], (int) $data["usec"], (int) $data["len"], $screen);
             $contents = substr($contents, $data["len"]);
         }
     }
 
-    private function setScreen($sec, $usec, $len, $screen){
+    private function setScreen(int $sec, int $usec, int $len, string $screen)
+    {
         $this->screens[] = new Screen($sec, $usec, $len, $screen);
     }
 
-    public function getScreens(){
+    public function getScreens()
+    {
         return $this->screens;
     }
 
@@ -54,12 +78,144 @@ class Terminal {
             }
             usleep($timeoutInMicros);
             print ($screen->screen);
-            $prevScreen = $screen;
+            if ($actual) {
+                $prevScreen = $screen;
+            }
         }
     }
 
-    private function calculateDiffBetweenScreens(Screen $screen, Screen $previousScreen)
+    public function calculateDiffBetweenScreens(Screen $screen, Screen $previousScreen)
     {
         return (1000000 * ($screen->sec - $previousScreen->sec)) + ($screen->usec - $previousScreen->usec);
+    }
+
+
+    private function setTab()
+    {
+        $this->tabString = str_pad("", $this->tabWidth, " ");
+    }
+
+    private function clearConsole()
+    {
+        $this->console = [];
+    }
+
+    /**
+     * loop screens and define maxes of screens
+     */
+    public function loopScreens() {
+        /** @var Screen $screen */
+        foreach ($this->screens as $screen) {
+            $commands = $screen->getCommands();
+            /** @var Command $command */
+            foreach ($commands as $command) {
+                $commClass = get_class($command);
+                switch($commClass)
+                {
+                    case ClearScreenCommand::class:
+                        $this->clearConsole();
+                        break;
+                    case CursorMoveCommand::class:
+                        $this->cursorRow = $command->row;
+                        $this->cursorCol = $command->col;
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case ClearLineFromRightCommand::class:
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case MoveArrowCommand::class:
+                        if ($command->up) { $this->cursorRow--; }
+                        if ($command->down) { $this->cursorRow++; }
+                        if ($command->right) { $this->cursorCol++; }
+                        if ($command->left) { $this->cursorCol--; }
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case OutputCommand::class:
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case MoveCursorHomeCommand::class:
+                        $this->cursorRow = 0;
+                        $this->cursorCol = 0;
+                        $this->parseOutputToTerminal($command->getOutput());
+                    case ColorCommand::class:
+                        // ignore for now
+                        break;
+                    case ReverseVideoCommand::class:
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case ClearScreenFromCursorCommand::class:
+                        if ($command->down) {
+                            $this->clearRowsDownFrom($this->cursorRow);
+                        }
+                        if ($command->up) {
+                            $this->clearRowsUpFrom($this->cursorRow);
+                        }
+                    case IgnoreCommand::class:
+                        // ignore
+                        break;
+                    default:
+                        print $commClass;
+                        print_r($command);
+                        die("Not implemented yet");
+                }
+            }
+        }
+    }
+
+    /**
+     * removes rows from here to below
+     * @param $row
+     */
+    private function clearRowsDownFrom($row)
+    {
+        foreach ($this->console as $rowindex => $dada) {
+            if ($rowindex >= $row) {
+                unset($this->console[$rowindex]);
+            }
+        }
+    }
+
+    /**
+     * Removes rows from here to up
+     * @param $row
+     */
+    private function clearRowsUpFrom($row)
+    {
+        foreach ($this->console as $rowindex => $dada) {
+            if ($rowindex <= $row) {
+                unset($this->console[$rowindex]);
+            }
+        }
+    }
+
+    /**
+     * Parses output to a console
+     * @param $output
+     * @param $row
+     * @param $col
+     */
+    private function parseOutputToTerminal($output)
+    {
+        $clearColumn = false;
+        $rowsFromOutput = explode(self::NEWLINE, $output);
+        foreach ($rowsFromOutput as $item) {
+            if ($clearColumn) {
+                $this->cursorCol = 0;
+            }
+            // replace tabs with spaces
+            $item = str_replace($item, self::TAB, $this->tabString);
+            // if there is existing items in row, get the contents pre cursorCol
+            // and prepend it to new output
+            if (isset($this->console[$this->cursorRow])) {
+                $existingRow = $this->console[$this->cursorRow];
+                $leaveThisOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
+                $item = $leaveThisOutputFromExisting.$item;
+            }
+            $this->console[$this->cursorRow] = new TerminalRow($item);
+            $this->cursorRow++;
+            $this->cursorCol = $this->cursorCol + strlen($item);
+            // if this overflows to next row, set col as 0, so on the next row we start from 0 col
+            $clearColumn = true;
+        }
     }
 }

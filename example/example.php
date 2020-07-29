@@ -8,6 +8,7 @@ use Terminal\Screen;
 
 $file = __DIR__."/game.ttyrec";
 $terminal = new Terminal($file);
+$terminal->loopScreens();
 
 if (true) {
     // speedy gonzales
