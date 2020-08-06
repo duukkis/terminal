@@ -103,9 +103,9 @@ class Terminal {
     /**
      * loop screens and define maxes of screens
      */
-    public function loopScreens() {
+    public function loopScreens($debug = false) {
         /** @var Screen $screen */
-        foreach ($this->screens as $screen) {
+        foreach ($this->screens as $screenNumber => $screen) {
             $commands = $screen->getCommands();
             /** @var Command $command */
             foreach ($commands as $command) {
@@ -138,7 +138,7 @@ class Terminal {
                         $this->cursorCol = 0;
                         $this->parseOutputToTerminal($command->getOutput());
                     case ColorCommand::class:
-                        // ignore for now
+                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ReverseVideoCommand::class:
                         $this->parseOutputToTerminal($command->getOutput());
@@ -151,13 +151,17 @@ class Terminal {
                             $this->clearRowsUpFrom($this->cursorRow);
                         }
                     case IgnoreCommand::class:
-                        // ignore
+                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     default:
                         print $commClass;
                         print_r($command);
                         die("Not implemented yet");
                 }
+            }
+            if ($debug) {
+              // write consoles into temp files with commands
+              $this->linesToFiles($screenNumber, $commands);
             }
         }
     }
@@ -196,26 +200,49 @@ class Terminal {
      */
     private function parseOutputToTerminal($output)
     {
-        $clearColumn = false;
-        $rowsFromOutput = explode(self::NEWLINE, $output);
-        foreach ($rowsFromOutput as $item) {
-            if ($clearColumn) {
-                $this->cursorCol = 0;
-            }
-            // replace tabs with spaces
-            $item = str_replace($item, self::TAB, $this->tabString);
-            // if there is existing items in row, get the contents pre cursorCol
-            // and prepend it to new output
-            if (isset($this->console[$this->cursorRow])) {
-                $existingRow = $this->console[$this->cursorRow];
-                $leaveThisOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
-                $item = $leaveThisOutputFromExisting.$item;
-            }
-            $this->console[$this->cursorRow] = new TerminalRow($item);
-            $this->cursorRow++;
-            $this->cursorCol = $this->cursorCol + strlen($item);
-            // if this overflows to next row, set col as 0, so on the next row we start from 0 col
-            $clearColumn = true;
+        if (empty($output)) {
+          return;
         }
+        $linesToParse = [];
+        $rowsFromOutput = explode(self::NEWLINE, $output);
+      
+        foreach ($rowsFromOutput as $trash => $item) {
+              // remove control M's
+              $item = str_replace("\x0D", "", $item);
+              // replace tabs with spaces
+              $item = str_replace(self::TAB, $this->tabString, $item);
+          
+              $itemLen = strlen($item);
+              // if there is existing items in row, get the contents pre cursorCol
+              // and prepend it to new output
+              if (isset($this->console[$this->cursorRow])) {
+                  $existingRow = $this->console[$this->cursorRow];
+                  $leaveThisOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
+                  $item = str_pad($leaveThisOutputFromExisting, $this->cursorCol, " ", STR_PAD_RIGHT).$item;
+              } else {
+                  $item = str_pad($item, ($this->cursorCol + $itemLen), " ", STR_PAD_LEFT);
+              }
+              $this->cursorCol += $itemLen;
+              $this->console[$this->cursorRow] = new TerminalRow($item);
+        }
+    }
+
+    /**
+     * Debugger that writes items into temp files with commands
+     */
+    public function linesToFiles($index, $commands){
+      $lastLine = 0;
+      if (!empty($this->console)) {
+        $lastLine = max(array_keys($this->console));
+      }
+      $data = '';
+      for ($i = 0;$i <= $lastLine;$i++) {
+        if (isset($this->console[$i])) {
+          $data .= $this->console[$i]->output;
+        }
+        $data .= PHP_EOL;
+      }
+      $data .= print_r($commands, true);
+      file_put_contents(__DIR__."/../../temp/screen_".$index.".txt", $data);
     }
 }

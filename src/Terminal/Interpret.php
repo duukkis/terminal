@@ -67,7 +67,7 @@ class Interpret
         if ("[0J" == $command) { return new ClearScreenFromCursorCommand(true, false); }
         if ("[1J" == $command) { return new ClearScreenFromCursorCommand(false, true); }
         if ("[2J" == $firstThreeOfCommand) { return new ClearScreenCommand($lastFromThreeOfCommand); }
-        if (1 == preg_match("/\[([0-9])+;([0-9])+H/", $command, $matches)) {
+        if (1 == preg_match("/\[([0-9]+);([0-9]+)H/", $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
             return new CursorMoveCommand((int) $matches[1], (int) $matches[2], $output);
         }
