@@ -2,7 +2,7 @@
 ttyrec to something else
 
 ```
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . './vendor/autoload.php';
 
 use Terminal\Terminal;
 use Terminal\Interpret;
