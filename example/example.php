@@ -10,7 +10,7 @@ $file = __DIR__."/game.ttyrec";
 $terminal = new Terminal($file);
 $terminal->loopScreens();
 
-if (true) {
+if (false) {
     // speedy gonzales
     $terminal->printScreens(false, 1000);
     // quarter of a second delay between frames

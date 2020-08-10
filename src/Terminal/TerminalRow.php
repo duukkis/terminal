@@ -15,4 +15,9 @@ class TerminalRow
     {
         return substr($this->output, 0, $col);
     }
+
+    public function getOutputFrom(int $col)
+    {
+        return substr($this->output, $col);
+    }
 }

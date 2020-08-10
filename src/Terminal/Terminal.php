@@ -2,6 +2,8 @@
 
 namespace Terminal;
 
+use Terminal\Commands\BackspaceCommand;
+use Terminal\Commands\CarriageReturnCommand;
 use Terminal\Commands\ClearLineFromRightCommand;
 use Terminal\Commands\ClearScreenCommand;
 use Terminal\Commands\ClearScreenFromCursorCommand;
@@ -11,6 +13,7 @@ use Terminal\Commands\CursorMoveCommand;
 use Terminal\Commands\IgnoreCommand;
 use Terminal\Commands\MoveArrowCommand;
 use Terminal\Commands\MoveCursorHomeCommand;
+use Terminal\Commands\NewlineCommand;
 use Terminal\Commands\OutputCommand;
 use Terminal\Commands\ReverseVideoCommand;
 
@@ -100,12 +103,14 @@ class Terminal {
         $this->console = [];
     }
 
+    private $screenNumber = 0;
     /**
      * loop screens and define maxes of screens
      */
     public function loopScreens($debug = false) {
         /** @var Screen $screen */
         foreach ($this->screens as $screenNumber => $screen) {
+            $this->screenNumber = $screenNumber;
             $commands = $screen->getCommands();
             /** @var Command $command */
             foreach ($commands as $command) {
@@ -115,13 +120,25 @@ class Terminal {
                     case ClearScreenCommand::class:
                         $this->clearConsole();
                         break;
+                    case BackspaceCommand::class:
+                        $this->cursorCol--;
+                        break;
+                    case NewlineCommand::class:
+                        $this->cursorCol = 0;
+                        $this->cursorRow++;
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case CarriageReturnCommand::class:
+                        $this->cursorCol = 0;
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
                     case CursorMoveCommand::class:
                         $this->cursorRow = $command->row;
                         $this->cursorCol = $command->col;
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ClearLineFromRightCommand::class:
-                        $this->parseOutputToTerminal($command->getOutput());
+                        $this->parseOutputToTerminal($command->getOutput(), true);
                         break;
                     case MoveArrowCommand::class:
                         if ($command->up) { $this->cursorRow--; }
@@ -134,9 +151,10 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case MoveCursorHomeCommand::class:
-                        $this->cursorRow = 0;
+                        $this->cursorRow = 1;
                         $this->cursorCol = 0;
                         $this->parseOutputToTerminal($command->getOutput());
+                        break;
                     case ColorCommand::class:
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
@@ -150,6 +168,7 @@ class Terminal {
                         if ($command->up) {
                             $this->clearRowsUpFrom($this->cursorRow);
                         }
+                        break;
                     case IgnoreCommand::class:
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
@@ -198,33 +217,32 @@ class Terminal {
      * @param $row
      * @param $col
      */
-    private function parseOutputToTerminal($output)
+    private function parseOutputToTerminal($output, $clearFromRight = false)
     {
-        if (empty($output)) {
+        // if clearLineFromRight
+        if ($clearFromRight && isset($this->console[$this->cursorRow])) {
+            $existingRow = $this->console[$this->cursorRow];
+            $this->console[$this->cursorRow] = new TerminalRow($existingRow->getOutputTo($this->cursorCol));
+        }
+        if (strlen($output) == 0) {
           return;
         }
-        $linesToParse = [];
-        $rowsFromOutput = explode(self::NEWLINE, $output);
-      
-        foreach ($rowsFromOutput as $trash => $item) {
-              // remove control M's
-              $item = str_replace("\x0D", "", $item);
-              // replace tabs with spaces
-              $item = str_replace(self::TAB, $this->tabString, $item);
-          
-              $itemLen = strlen($item);
-              // if there is existing items in row, get the contents pre cursorCol
-              // and prepend it to new output
-              if (isset($this->console[$this->cursorRow])) {
-                  $existingRow = $this->console[$this->cursorRow];
-                  $leaveThisOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
-                  $item = str_pad($leaveThisOutputFromExisting, $this->cursorCol, " ", STR_PAD_RIGHT).$item;
-              } else {
-                  $item = str_pad($item, ($this->cursorCol + $itemLen), " ", STR_PAD_LEFT);
-              }
-              $this->cursorCol += $itemLen;
-              $this->console[$this->cursorRow] = new TerminalRow($item);
+        // replace tabs with spaces
+        $output = str_replace(self::TAB, $this->tabString, $output);
+
+        $itemLen = strlen($output);
+        // if there is existing items in row, get the contents
+        // and prepend and append it to new output based on cursorCol
+        if (isset($this->console[$this->cursorRow])) {
+            $existingRow = $this->console[$this->cursorRow];
+            $beginningOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
+            $endOutputFromExisting = $existingRow->getOutputFrom($this->cursorCol + $itemLen);
+            $output = str_pad($beginningOutputFromExisting, $this->cursorCol, " ", STR_PAD_RIGHT).$output.$endOutputFromExisting;
+        } else {
+            $output = str_pad($output, ($this->cursorCol + $itemLen), " ", STR_PAD_LEFT);
         }
+        $this->cursorCol += $itemLen;
+        $this->console[$this->cursorRow] = new TerminalRow($output);
     }
 
     /**

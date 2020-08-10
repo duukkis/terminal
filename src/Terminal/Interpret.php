@@ -1,6 +1,8 @@
 <?php
 namespace Terminal;
 
+use Terminal\Commands\BackspaceCommand;
+use Terminal\Commands\CarriageReturnCommand;
 use Terminal\Commands\ClearLineFromRightCommand;
 use Terminal\Commands\ClearScreenCommand;
 use Terminal\Commands\ClearScreenFromCursorCommand;
@@ -10,6 +12,7 @@ use Terminal\Commands\CursorMoveCommand;
 use Terminal\Commands\IgnoreCommand;
 use Terminal\Commands\MoveArrowCommand;
 use Terminal\Commands\MoveCursorHomeCommand;
+use Terminal\Commands\NewlineCommand;
 use Terminal\Commands\OutputCommand;
 use Terminal\Commands\ReverseVideoCommand;
 use Terminal\Commands\TabCommand;
@@ -23,6 +26,11 @@ class Interpret
 
         // just remove terminal commands as they are present in screens without bringing any joy
         $screen = str_replace(['[?1049h', '[?1049l'], '', $screen);
+
+        // convert backspaces into ESC + [X chars and match em later
+        $screen = str_replace("\010", chr(0x1B)."[X", $screen);
+        $screen = str_replace("\n", chr(0x1B)."[Y", $screen);
+        $screen = str_replace("\r", chr(0x1B)."[Z", $screen);
 
         $escape = chr(0x1B);
         $pieces = explode($escape, $screen);
@@ -63,9 +71,9 @@ class Interpret
         if ("[B" == $firstTwoOfCommand) { return new MoveArrowCommand(false, true, false, false, $lastFromTwoOfCommand); }
         if ("[C" == $firstTwoOfCommand) { return new MoveArrowCommand(false, false, true, false, $lastFromTwoOfCommand); }
         if ("[D" == $firstTwoOfCommand) { return new MoveArrowCommand(false, false, false, true, $lastFromTwoOfCommand); }
-        if ("[J" == $command) { return new ClearScreenFromCursorCommand(true, false); }
-        if ("[0J" == $command) { return new ClearScreenFromCursorCommand(true, false); }
-        if ("[1J" == $command) { return new ClearScreenFromCursorCommand(false, true); }
+        if ("[J" == $firstTwoOfCommand) { return new ClearScreenFromCursorCommand(true, false); }
+        if ("[0J" == $firstThreeOfCommand) { return new ClearScreenFromCursorCommand(true, false); }
+        if ("[1J" == $firstThreeOfCommand) { return new ClearScreenFromCursorCommand(false, true); }
         if ("[2J" == $firstThreeOfCommand) { return new ClearScreenCommand($lastFromThreeOfCommand); }
         if (1 == preg_match("/\[([0-9]+);([0-9]+)H/", $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
@@ -87,15 +95,19 @@ class Interpret
         if ("[45m" == $firstFourOfCommand) { return new ColorCommand(ColorCommand::MAGENTA, true, $lastFromFourOfCommand); }
         if ("[46m" == $firstFourOfCommand) { return new ColorCommand(ColorCommand::CYAN, true, $lastFromFourOfCommand); }
         if ("[47m" == $firstFourOfCommand) { return new ColorCommand(ColorCommand::WHITE, true, $lastFromFourOfCommand); }
+        if ("[?1l" == $firstFourOfCommand) { return new IgnoreCommand($lastFromFourOfCommand, "DECCKM - Set cursor key to cursor"); }
 
-        if ("[?1l" == $command) { return new IgnoreCommand("", "DECCKM - Set cursor key to cursor"); }
+        if ("[X" == $firstTwoOfCommand) { return new BackspaceCommand($lastFromTwoOfCommand); }
+        if ("[Y" == $firstTwoOfCommand) { return new NewlineCommand($lastFromTwoOfCommand); }
+        if ("[Z" == $firstTwoOfCommand) { return new CarriageReturnCommand($lastFromTwoOfCommand); }
         if ("[0m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR0 - Turn off character attributes"); }
-        if ("[1m" == $command) { return new IgnoreCommand("", "SGR1 - Turn bold mode on"); }
-        if ("[2m" == $command) { return new IgnoreCommand("", "SGR2 - Turn low intensity mode on"); }
-        if ("[4m" == $command) { return new IgnoreCommand("", "SGR4 - Turn underline mode on"); }
-        if ("[5m" == $command) { return new IgnoreCommand("", "SGR5 - Turn blinking mode on"); }
-        if ("[7m" == $command) { return new IgnoreCommand("", "SGR7 - Turn reverse video on"); }
-        if ("[8m" == $command) { return new IgnoreCommand("", "SGR8 - Turn invisible text mode on"); }
+        if ("[1m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR1 - Turn bold mode on"); }
+        if ("[2m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR2 - Turn low intensity mode on"); }
+        if ("[4m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR4 - Turn underline mode on"); }
+        if ("[5m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR5 - Turn blinking mode on"); }
+        if ("[7m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR7 - Turn reverse video on"); }
+        if ("[8m" == $firstThreeOfCommand) { return new IgnoreCommand($lastFromThreeOfCommand, "SGR8 - Turn invisible text mode on"); }
+
         return null;
     }
 
