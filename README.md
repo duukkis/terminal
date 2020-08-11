@@ -1,6 +1,13 @@
-# terminal
-ttyrec-file to something else.
+# Terminal
+PHP parser for ttyrec-files.
 
+
+> File in example/game.ttyrec from https://alt.org/nethack/
+>
+> Creative Commons Attribution 4.0 International License.
+
+
+## Requirements
 - PHP 7.4
 - Load composer https://getcomposer.org/
 - composer install
@@ -43,10 +50,55 @@ foreach ($screens as $screen) {
 
 ## Code logic
 
-- Terminal - the top file
-- Screen - ttyrec is splitted into these. Has sec, usec, len and the actual screen to print in terminal
-- Commands - Screen is splitted into commands. See Terminal/Commands dir
-- Interpret - Interprets screen strings into different commands.
+- __Terminal__ - the top file
+- __Screen__ - ttyrec is splitted into these. Has sec, usec, len and the actual screen to print in terminal
+- __Commands__ - Screen is splitted into commands. See Terminal/Commands dir
+- __Interpret__ - Interprets screen strings into different commands.
 
 - Terminal has loopScreens function that interprets screen commands into actual output. Most of screens depend on the previous screens.
 - TerminalRow is a row that is a string and those are put into Terminal->console[rowIndex] array and modified / added based on screen commands.
+
+
+```
+screen_6415.txt
+
+                        ----------
+                       /          \
+                      /    REST    \
+                     /      IN      \
+                    /     PEACE      \
+                   /                  \
+                   |     heather      |
+                   |       7 Au       |
+                   |   killed by a    |
+                   |    giant bat     |
+                   |                  |
+                   |                  |
+                   |       2020       |
+                  *|     *  *  *      | *
+         _________)/\\_//(\/(/\)/\//\/|_)_______
+
+
+ Goodbye heather the Wizard...
+
+ You died in The Dungeons of Doom on dungeon level 3 with 1655 points,
+ and 7 pieces of gold, after 4835 moves.
+ You were level 6 with a maximum of 49 hit points when you died.
+```
+
+
+#Terminal to Gif
+
+```
+require __DIR__ . '/../vendor/autoload.php';
+
+use Terminal\TerminalToGif;
+
+$file = __DIR__."/game.ttyrec";
+
+$terminalToGif = new TerminalToGif($file);
+$terminalToGif->screenToGif(6415, "test.gif");
+```
+
+
+![RIP](example/test.gif)

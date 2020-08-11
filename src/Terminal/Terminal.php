@@ -202,6 +202,8 @@ class Terminal {
                         die("Not implemented yet");
                 }
             }
+            // set the print out into Screen so it's reusable
+            $this->screens[$screenNumber]->setConsole($this->console);
             if (null !== $stopAtScreen && $screenNumber == $stopAtScreen) {
                 break;
             }
