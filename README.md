@@ -1,7 +1,13 @@
 # terminal
-ttyrec to something else
+ttyrec-file to something else.
+
+- PHP 7.4
+- Load composer https://getcomposer.org/
+- composer install
+- php example/example.php
 
 ```
+// this so that composer autoload is loaded
 require __DIR__ . './vendor/autoload.php';
 
 use Terminal\Terminal;
