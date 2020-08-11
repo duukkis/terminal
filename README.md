@@ -39,3 +39,14 @@ foreach ($screens as $screen) {
 }
 
 ```
+
+
+## Code logic
+
+Terminal - the top file
+Screen - ttyrec is splitted into these. Has sec, usec, len and the actual screen to print in terminal
+Commands - Screen is splitted into commands. See Terminal/Commands dir
+Interpret - Interprets screen strings into different commands.
+
+Terminal has loopScreens function that interprets screen commands into actual output. Most of screens depend on the previous screens.
+TerminalRow is a row that is a string and those are put into Terminal->console[rowIndex] array and modified / added based on screen commands.
