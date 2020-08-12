@@ -12,7 +12,7 @@ class TerminalToGif
     private $fontHeight = 14;
 
     private $cols = 80;
-    private $rows = 24;
+    private $rows = 26;
 
     private $margin = 5;
 
@@ -43,7 +43,9 @@ class TerminalToGif
         // init the image width and height
         $this->imageHeight = $this->rows * $this->fontHeight + (2 * $this->margin);
         $this->imageWidth = $this->cols * $this->fontWidth + (2 * $this->margin);
-        $this->createImage($filename);
+        $im = $this->createImage($filename);
+        imagegif($im, $filename);
+        imagedestroy($im);
     }
 
     private function setBackgroundColor($im): ?int
@@ -61,16 +63,15 @@ class TerminalToGif
         $im = imagecreate($this->imageWidth, $this->imageHeight);
         $this->setBackgroundColor($im);
         $textcolor = $this->getForegroundColor($im);
-        for ($i = 1;$i <= 24;$i++) {
-            if(isset($this->console[$i])){
+        for ($i = 1; $i <= $this->rows; $i++) {
+            if (isset($this->console[$i])) {
                 $x = $this->margin;
                 $y = $i * $this->fontHeight + $this->margin;
                 $text = $this->console[$i]->output;
                 imagestring($im, $this->font, $x, $y, $text, $textcolor);
             }
         }
-        imagegif($im, $filename);
-        imagedestroy($im);
+        return $im;
     }
 
 }
