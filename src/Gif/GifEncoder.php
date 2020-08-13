@@ -87,42 +87,79 @@ class GifEncoder {
         array $gifDelays = [],
         int $loops = 0,
         ?int $disposalMethod = 2,
-        ?string $fileType = "url"
+        ?string $fileType = "url",
+        ?string $writeGif = null
     ) {
         $disposalMethod = (null !== $disposalMethod) ? $disposalMethod : 2;
 
         $this->loops = abs($loops);
         $this->disposalMethod = (in_array($disposalMethod, [0,1,2,3])) ? $disposalMethod : 2;
 
-        if (count($gifSources) !== count($gifDelays)) {
-            exit("Sources dont match delays");
+        if (empty($gifDelays)) {
+            exit("Need a delay");
         }
 
+        if (null !== $writeGif) {
+            $this->openFileForWriting($writeGif);
+        }
+
+        $firstFrame = null;
+        $delay = 30;
+        $index = 0;
         foreach($gifSources as $gif) {
             if ($fileType == "url") {
-                $resource = fread(fopen($gif, "rb"), filesize($gif));
+                $f = fopen($gif, "rb");
+                $resource = fread($f, filesize($gif));
+                fclose($f);
             } else if ($fileType == "bin") {
                 $resource = $gif;
             } else {
                 exit("File method not defined - need to be url or bin");
             }
-
             $imageType = substr($resource, 0, 6);
-
             if (!in_array($imageType, ["GIF87a"])) { // animated "GIF89a"
                 print $gif." is not a gif";
                 exit();
             }
-            $this->imageBuffer[] = $resource;
-            // do not do additional checks - presume everything is ok
-        }
+            // set the first fram
+            if (null === $firstFrame) {
+                $firstFrame = $resource;
+                $this->addGifHeader($firstFrame);
+            }
+            $delay = (isset($gifDelays[$index])) ? $gifDelays[$index] : $delay;
 
-        $firstFrame = $this->imageBuffer[0];
-        $this->addGifHeader($firstFrame);
-        for ($i = 0; $i < count($this->imageBuffer); $i++ ) {
-            $this->addFrameToGif($this->imageBuffer[$i], $gifDelays[$i], $firstFrame);
+            $this->addFrameToGif($resource, $delay, $firstFrame);
+
+            if (null !== $writeGif) {
+                $this->cleanBufferToFile();
+            }
+
+            $index++;
         }
         $this->addGifFooter();
+
+        if (null !== $writeGif) {
+            $this->closeFileForWriting();
+        }
+    }
+
+    private $fileBuffer = null;
+
+    private function openFileForWriting($filename)
+    {
+        $this->fileBuffer = fopen($filename, 'w');
+    }
+
+    private function cleanBufferToFile()
+    {
+        fwrite($this->fileBuffer, $this->gif);
+        $this->gif = '';
+    }
+
+    private function closeFileForWriting()
+    {
+        $this->cleanBufferToFile();
+        fclose($this->fileBuffer);
     }
 
     /*
