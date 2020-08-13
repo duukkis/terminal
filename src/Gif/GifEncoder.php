@@ -61,27 +61,38 @@ class GifEncoder {
 
     private array $imageBuffer = [];
     private int $loops;
-    private int $disposal;
-    var $transparentColor = -1;
+    /*
+        Disposal Methods:
+        000: Not specified - 0
+        001: Do not dispose - 1
+        010: Restore to BG color - 2
+        011: Restore to previous - 3
+    */
+    private int $disposalMethod;
+
+    // set transparent as white for now
+    private int $transRed = 255;
+    private int $transGreen = 255;
+    private int $transBlue = 255;
 
     /*
      * @param array $GIF_src - sources
      * @param array $GIF_dly - delays
      * @param int $GIF_lop - loops
-     * @param array $GIF_dis - disposal? - 2
+     * @param array $GIF_dis - disposal? - 2 -- creates overlapping gifs if smaller than 2
      * @param string $GIF_mod - source type url / bin
     */
     public function __construct(
         array $gifSources = [],
         array $gifDelays = [],
         int $loops = 0,
-        int $disposals = 2,
-        string $fileType = "url"
+        ?int $disposalMethod = 2,
+        ?string $fileType = "url"
     ) {
+        $disposalMethod = (null !== $disposalMethod) ? $disposalMethod : 2;
+
         $this->loops = abs($loops);
-        $this->disposal = (in_array($disposals, [0,1,2])) ? $disposals : 2;
-        // set transparent as white for now
-        $this->transparentColor = ( 255 | ( 255 << 8 ) | ( 255 << 16 ));
+        $this->disposalMethod = (in_array($disposalMethod, [0,1,2,3])) ? $disposalMethod : 2;
 
         if (count($gifSources) !== count($gifDelays)) {
             exit("Sources dont match delays");
@@ -89,12 +100,11 @@ class GifEncoder {
 
         foreach($gifSources as $gif) {
             if ($fileType == "url") {
-                $f = fopen($gif, "rb");
-                $resource = fread($f, filesize($gif));
+                $resource = fread(fopen($gif, "rb"), filesize($gif));
             } else if ($fileType == "bin") {
                 $resource = $gif;
             } else {
-                exit("File mod not defined");
+                exit("File method not defined - need to be url or bin");
             }
 
             $imageType = substr($resource, 0, 6);
@@ -156,18 +166,16 @@ class GifEncoder {
 
         $firstFrame = $this->imageBuffer[0];
 
-        $frame_start = 13 + 3 * ( 2 << ( ord ( $frame[10]) & 0x07) );
+        $frame_start = 13 + 3 * ( 2 << ( ord ($frame[10]) & 0x07) );
         $frame_end = strlen($frame) - $frame_start - 1;
         // if local rgb is same as global we remove em
-        $Locals_rgb = substr ($frame, 13,
-            3 * ( 2 << (ord($frame[10]) & 0x07) ) );
-        $Locals_tmp = substr($frame, $frame_start, $frame_end);
+        $frameColorRgbTable = substr ($frame, 13, 3 * ( 2 << (ord($frame[10]) & 0x07) ) );
+        $frameImageData = substr($frame, $frame_start, $frame_end);
 
         $frameLen = 2 << (ord($frame[10]) & 0x07);
 
-        $Global_len = 2 << (ord($firstFrame[10]) & 0x07);
-        $Global_rgb = substr($firstFrame, 13,
-            3 * ( 2 << (ord($firstFrame[10]) & 0x07) ) );
+        $firstFrameLength = 2 << (ord($firstFrame[10]) & 0x07);
+        $firstFrameColorRgbTable = substr($firstFrame, 13, 3 * ( 2 << (ord($firstFrame[10]) & 0x07) ) );
 
         // start of frame n
         // 21 F9
@@ -176,42 +184,65 @@ class GifEncoder {
         // - 0.09 sec delay before painting next frame
         // \x0 marking no transparent color
         // \x0 marking end of GCE block
-        $Locals_ext = "!\xF9\x04" . chr ( ( $this->disposal << 2 ) + 0 ) .
-            chr ( ( $currentFrameLength >> 0 ) & 0xFF ) . chr ( ( $currentFrameLength >> 8 ) & 0xFF ) . "\x0\x0";
+        $frameGraphicControlExtension =
+            "!\xF9\x04" .
+            chr(($this->disposalMethod << 2) + 0) .
+            chr(($currentFrameLength >> 0) & 0xFF) .
+            chr( ( $currentFrameLength >> 8 ) & 0xFF ) .
+            "\x0\x0";
 
-        // frame background color is not the same as the image we created
-        // we switch the frames bg to what ever it is
-        if ( $this->transparentColor > -1 && ord($frame[10]) & 0x80 ) {
-            for ($j = 0; $j < ( 2 << ( ord ($frame[10]) & 0x07) ); $j++ ) {
-                // if color is same as transparent
+        // in frame there is a transparent color
+        if (ord($frame[10]) & 0x80) {
+            // find the frames transparent color and set it to header as transparent color
+            // 30D:   21 F9                    Graphic Control Extension (comment fields precede this in most files)
+            // 30F:   04           4            - 4 bytes of GCE data follow
+            // 310:   01                        - there is a transparent background color
+            // 311:   00 00                     - delay for animation in hundredths of a second
+            // 313:   10          16            - color #16 is transparent
+            // 314:   00                        - end of GCE block
+            for ($j = 0; $j < ( 2 << (ord($frame[10]) & 0x07)); $j++ ) {
+                $index = 3 * $j;
+                // find the transparent color index and set it to frame header
                 if (
-                    ord ( $Locals_rgb [3 * $j + 0]) == ( ( $this->transparentColor >> 16 ) & 0xFF ) &&
-                    ord ( $Locals_rgb [3 * $j + 1]) == ( ( $this->transparentColor >> 8 ) & 0xFF ) &&
-                    ord ( $Locals_rgb [3 * $j + 2]) == ( ( $this->transparentColor >> 0 ) & 0xFF )
+                    ord($frameColorRgbTable[$index + 0]) == $this->transRed &&
+                    ord($frameColorRgbTable[$index + 1]) == $this->transGreen &&
+                    ord($frameColorRgbTable[$index + 2]) == $this->transBlue
                 ) {
-                    $Locals_ext = "!\xF9\x04" . chr ( ( $this->disposal << 2 ) + 1 ) .
-                        chr ( ( $currentFrameLength >> 0 ) & 0xFF ) . chr ( ( $currentFrameLength >> 8 ) & 0xFF ) . chr ( $j ) . "\x0";
+                    $frameGraphicControlExtension =
+                        "!\xF9\x04" .
+                        chr(($this->disposalMethod << 2) + 1) .
+                        chr(($currentFrameLength >> 0 ) & 0xFF) .
+                        chr(($currentFrameLength >> 8) & 0xFF) .
+                        chr($j) .
+                        "\x0";
                     break;
                 }
             }
         }
 
         // we remove the rgb in between so we can possibly add it in between
-        $Locals_img = substr($Locals_tmp, 0, 10);
-        $Locals_tmp = substr($Locals_tmp, 10, strlen($Locals_tmp) - 10);
+        // keep the image descriptor from frame
+        // * 328:   2C                     Image Descriptor
+        // * 329:   00 00 00 00  (0,0)      - NW corner of frame at 0, 0
+        // * 32D:   90 01 90 01  (400,400)  - Frame width and height: 400 × 400
+        // * 331:   00                      - no local color table; no interlace
+        // we switch the last byte on the next if, if there is a local color table
+        $frameImageDescriptor = substr($frameImageData, 0, 10);
+        $frameImageData = substr($frameImageData, 10, strlen($frameImageData) - 10);
 
         // if the local and global blocks colors differ, not first we need to add the frame color block
         if (ord ($frame[10]) & 0x80 &&
-            !($Global_len == $frameLen && $this->compareRgbBlocks($Global_rgb, $Locals_rgb, $Global_len))) {
-            $byte = ord($Locals_img [9]);
+            !($firstFrameLength == $frameLen && $this->compareRgbBlocks($firstFrameColorRgbTable, $frameColorRgbTable, $firstFrameLength))) {
+            $byte = ord($frameImageDescriptor[9]);
             $byte |= 0x80;
             $byte &= 0xF8;
             $byte |= (ord ($firstFrame[10]) & 0x07);
-            $Locals_img [9] = chr($byte);
-            $this->gif .= $Locals_ext . $Locals_img . $Locals_rgb . $Locals_tmp;
+            $frameImageDescriptor[9] = chr($byte);
         } else {
-            $this->gif .= $Locals_ext . $Locals_img . $Locals_tmp;
+            // do not append frame rgb
+            $frameColorRgbTable = '';
         }
+        $this->gif .= $frameGraphicControlExtension . $frameImageDescriptor . $frameColorRgbTable . $frameImageData;
     }
 
     /**
@@ -231,13 +262,14 @@ class GifEncoder {
      *
      * @return bool
      */
-    private function compareRgbBlocks($GlobalBlock, $LocalBlock, $Len): bool
+    private function compareRgbBlocks($blockOne, $blockTwo, int $len): bool
     {
-        for ( $i = 0; $i < $Len; $i++ ) {
+        for ($i = 0; $i < $len; $i++ ) {
+            $index = 3 * $i;
             if (
-                $GlobalBlock [3 * $i + 0] != $LocalBlock [3 * $i + 0] ||
-                $GlobalBlock [3 * $i + 1] != $LocalBlock [3 * $i + 1] ||
-                $GlobalBlock [3 * $i + 2] != $LocalBlock [3 * $i + 2]
+                $blockOne[$index + 0] != $blockTwo[$index + 0] ||
+                $blockOne[$index + 1] != $blockTwo[$index + 1] ||
+                $blockOne[$index + 2] != $blockTwo[$index + 2]
             ) {
                 return false;
             }
@@ -245,9 +277,9 @@ class GifEncoder {
         return true;
     }
 
-    private function unsignedNumberOfRepetition($int): string
+    private function unsignedNumberOfRepetition($loops): string
     {
-        return ( chr ( $int & 0xFF ) . chr ( ( $int >> 8 ) & 0xFF ) );
+        return ( chr($loops & 0xFF) . chr(($loops >> 8) & 0xFF));
     }
 
     /**
