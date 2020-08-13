@@ -87,7 +87,7 @@ screen_6415.txt
 ```
 
 
-#Terminal to Gif
+# Terminal to Gif
 
 ```
 require __DIR__ . '/../vendor/autoload.php';
@@ -102,3 +102,31 @@ $terminalToGif->screenToGif(6415, "test.gif");
 
 
 ![RIP](example/test.gif)
+
+# Creating animated gif with PHP
+
+```
+require __DIR__ . '/../vendor/autoload.php';
+
+use Terminal\TerminalToGif;
+use Gif\GifEncoder;
+
+// create some gifs first 
+$file = __DIR__."/game.ttyrec";
+$terminalToGif = new TerminalToGif($file);
+
+// write three files with different fgColor
+$terminalToGif->setFgColor(255, 0, 0);
+$terminalToGif->screenToGif(6415, "test.gif");
+$terminalToGif->setFgColor(0, 0, 0);
+$terminalToGif->screenToGif(6414, "test2.gif");
+$terminalToGif->setFgColor(0, 0, 255);
+$terminalToGif->screenToGif(6410, "test3.gif");
+
+// make an animated gif from them with GifEncoder
+$gifEncoder = new GifEncoder(["test3.gif", "test2.gif", "test.gif"], [100, 100, 200], 1, 2, "url");
+// gif ready write it to animated gif
+$gifEncoder->writeGif("animated.gif");
+```
+
+![RIP](example/animated.gif)
