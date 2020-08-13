@@ -8,16 +8,16 @@ class TerminalToGif
     private $console = [];
 
     private int $font = 5;
-    private $fontWidth = 9;
-    private $fontHeight = 14;
+    private int $fontWidth = 9;
+    private int $fontHeight = 14;
 
     private $cols = 80;
     private $rows = 26;
 
     private $margin = 5;
 
-    private $imageWidth = 0; // 730 with the top values
-    private $imageHeight = 0; // 346 with the top values
+    private $imageWidth = 0; // 730 with the above values
+    private $imageHeight = 0; // 346 with the above values
 
     private $bgColor = ["r" => 255, "g" => 255, "b" => 255];
     private $fgColor = ["r" => 0, "g" => 0, "b" => 0];
@@ -31,6 +31,51 @@ class TerminalToGif
         $this->terminal->loopScreens();
     }
 
+    // setters
+    public function setFont($font, $fontWidth, $fontHeight)
+    {
+        $this->font = $font;
+        $this->fontWidth = $fontWidth;
+        $this->fontHeight = $fontHeight;
+    }
+
+    /**
+     * @param int $r
+     * @param int $g
+     * @param int $b
+     */
+    public function setBgColor(int $r, int $g, int $b): void
+    {
+        $this->bgColor = ["r" => $r, "g" => $g, "b" => $b];
+    }
+
+    /**
+     * @param int $r
+     * @param int $g
+     * @param int $b
+     */
+    public function setFgColor(int $r, int $g, int $b): void
+    {
+        $this->fgColor = ["r" => $r, "g" => $g, "b" => $b];
+    }
+
+    /**
+     * @param int $margin
+     */
+    public function setMargin(int $margin): void
+    {
+        $this->margin = $margin;
+    }
+
+    /**
+     * @param int $rows
+     * @param int $cols
+     */
+    public function setDimensions(int $rows, int $cols): void
+    {
+        $this->rows = $rows;
+        $this->cols = $cols;
+    }
     /**
      * @param int $screenNumber
      * @param string $filename - filename to write the gif

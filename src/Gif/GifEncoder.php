@@ -109,7 +109,7 @@ class GifEncoder {
 
             $imageType = substr($resource, 0, 6);
 
-            if (!in_array($imageType, ["GIF87a", "GIF89a"])){
+            if (!in_array($imageType, ["GIF87a"])) { // animated "GIF89a"
                 print $gif." is not a gif";
                 exit();
             }
@@ -117,9 +117,10 @@ class GifEncoder {
             // do not do additional checks - presume everything is ok
         }
 
-        $this->addGifHeader($this->imageBuffer[0]);
+        $firstFrame = $this->imageBuffer[0];
+        $this->addGifHeader($firstFrame);
         for ($i = 0; $i < count($this->imageBuffer); $i++ ) {
-            $this->addFrameToGif($this->imageBuffer[$i], $gifDelays[$i]);
+            $this->addFrameToGif($this->imageBuffer[$i], $gifDelays[$i], $firstFrame);
         }
         $this->addGifFooter();
     }
@@ -136,11 +137,11 @@ class GifEncoder {
     private function addGifHeader(string $firstFrame) {
         // here we copy from the first frame width and height and Global Color Table specification
         // to animated gif
-        if (ord($this->imageBuffer[0][10]) & 0x80) {
+        if (ord($firstFrame[10]) & 0x80) {
             // GCT follows for 256 colors with resolution 3 × 8 bits/primary
             $cmap = 3 * ( 2 << ( ord ( $firstFrame[10]) & 0x07));
             $this->gif .= substr($firstFrame, 6, 7); // width and height from first image
-            $this->gif .= substr($firstFrame, 13, $cmap);
+            $this->gif .= substr($firstFrame, 13, $cmap);  // color map
             $this->gif .= "!\377\13NETSCAPE2.0\3\1" . $this->unsignedNumberOfRepetition($this->loops) . "\0";
         }
     }
@@ -162,16 +163,14 @@ class GifEncoder {
      * 333:   FF           255       - 255 bytes of LZW encoded image data follow
      * 334:                data
      */
-    private function addFrameToGif($frame, $currentFrameLength) {
-
-        $firstFrame = $this->imageBuffer[0];
+    private function addFrameToGif($frame, $currentFrameLength, $firstFrame) {
 
         $frame_start = 13 + 3 * ( 2 << ( ord ($frame[10]) & 0x07) );
         $frame_end = strlen($frame) - $frame_start - 1;
-        // if local rgb is same as global we remove em
-        $frameColorRgbTable = substr ($frame, 13, 3 * ( 2 << (ord($frame[10]) & 0x07) ) );
-        $frameImageData = substr($frame, $frame_start, $frame_end);
 
+        // if local rgb is same as global we remove em
+        $frameColorRgbTable = substr($frame, 13, 3 * ( 2 << (ord($frame[10]) & 0x07) ) );
+        $frameImageData = substr($frame, $frame_start, $frame_end);
         $frameLen = 2 << (ord($frame[10]) & 0x07);
 
         $firstFrameLength = 2 << (ord($firstFrame[10]) & 0x07);
@@ -188,7 +187,7 @@ class GifEncoder {
             "!\xF9\x04" .
             chr(($this->disposalMethod << 2) + 0) .
             chr(($currentFrameLength >> 0) & 0xFF) .
-            chr( ( $currentFrameLength >> 8 ) & 0xFF ) .
+            chr(($currentFrameLength >> 8) & 0xFF ) .
             "\x0\x0";
 
         // in frame there is a transparent color
@@ -200,7 +199,7 @@ class GifEncoder {
             // 311:   00 00                     - delay for animation in hundredths of a second
             // 313:   10          16            - color #16 is transparent
             // 314:   00                        - end of GCE block
-            for ($j = 0; $j < ( 2 << (ord($frame[10]) & 0x07)); $j++ ) {
+            for ($j = 0; $j < (2 << (ord($frame[10]) & 0x07)); $j++) {
                 $index = 3 * $j;
                 // find the transparent color index and set it to frame header
                 if (
@@ -211,7 +210,7 @@ class GifEncoder {
                     $frameGraphicControlExtension =
                         "!\xF9\x04" .
                         chr(($this->disposalMethod << 2) + 1) .
-                        chr(($currentFrameLength >> 0 ) & 0xFF) .
+                        chr(($currentFrameLength >> 0) & 0xFF) .
                         chr(($currentFrameLength >> 8) & 0xFF) .
                         chr($j) .
                         "\x0";
@@ -230,16 +229,20 @@ class GifEncoder {
         $frameImageDescriptor = substr($frameImageData, 0, 10);
         $frameImageData = substr($frameImageData, 10, strlen($frameImageData) - 10);
 
-        // if the local and global blocks colors differ, not first we need to add the frame color block
-        if (ord ($frame[10]) & 0x80 &&
-            !($firstFrameLength == $frameLen && $this->compareRgbBlocks($firstFrameColorRgbTable, $frameColorRgbTable, $firstFrameLength))) {
+        // if there is a transparent color in frame
+        // and if local and global frame length differ
+        // and color tables are different
+        if (ord ($frame[10]) & 0x80 ||
+            $firstFrameLength !== $frameLen ||
+            $firstFrameColorRgbTable != $frameColorRgbTable) {
+
             $byte = ord($frameImageDescriptor[9]);
             $byte |= 0x80;
             $byte &= 0xF8;
             $byte |= (ord ($firstFrame[10]) & 0x07);
             $frameImageDescriptor[9] = chr($byte);
         } else {
-            // do not append frame rgb
+            // do not append frame rgb since the frame is same as first frame
             $frameColorRgbTable = '';
         }
         $this->gif .= $frameGraphicControlExtension . $frameImageDescriptor . $frameColorRgbTable . $frameImageData;
@@ -251,30 +254,6 @@ class GifEncoder {
      */
     private function addGifFooter() {
         $this->gif .= ";";
-    }
-
-    /**
-     * Compare global and frame rgb, returns true is same, false if different
-     *
-     * @param string $globalBlock
-     * @param string $localBlock
-     * @param integer $length
-     *
-     * @return bool
-     */
-    private function compareRgbBlocks($blockOne, $blockTwo, int $len): bool
-    {
-        for ($i = 0; $i < $len; $i++ ) {
-            $index = 3 * $i;
-            if (
-                $blockOne[$index + 0] != $blockTwo[$index + 0] ||
-                $blockOne[$index + 1] != $blockTwo[$index + 1] ||
-                $blockOne[$index + 2] != $blockTwo[$index + 2]
-            ) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private function unsignedNumberOfRepetition($loops): string
