@@ -3,9 +3,6 @@
 namespace Gif;
 
 /*
- * ripped and rewrote from GIFEncoder Version 2.0 by László Zsidi
- * where nothing was explained
- *
  * GIF89a is https://en.wikipedia.org/wiki/GIF
  * byte#  hexadecimal  text or
  * (hex)               value         Meaning
@@ -57,9 +54,15 @@ namespace Gif;
 
 class GifEncoder {
 
-    private string $gif = "GIF89a"; /* GIF header 6 bytes */
+    const GCT_POSITION = 10;
+    const COLORTABLE_POSITION = 13;
+    // GIF header 6 bytes
+    const GIF89a = "GIF89a";
+    const GRAPHIC_CONTROL_START = "\x21\xF9\x04";
+    const GIF_HEADER = "!\377\13NETSCAPE2.0\3\1";
+    const ZERO_BYTE = "\x0";
 
-    private array $imageBuffer = [];
+    private string $gif = self::GIF89a;
     private int $loops;
     /*
         Disposal Methods:
@@ -74,20 +77,19 @@ class GifEncoder {
     private int $transRed = 255;
     private int $transGreen = 255;
     private int $transBlue = 255;
+    private string $transparentColor = '';
 
     /*
-     * @param array $GIF_src - sources
-     * @param array $GIF_dly - delays
-     * @param int $GIF_lop - loops
-     * @param array $GIF_dis - disposal? - 2 -- creates overlapping gifs if smaller than 2
-     * @param string $GIF_mod - source type url / bin
+     * @param array $gifSources - sources
+     * @param array $gifDelays - delays
+     * @param int $loops - loops
+     * @param array $disposalMethod - see above
     */
     public function __construct(
         array $gifSources = [],
         array $gifDelays = [],
         int $loops = 0,
         ?int $disposalMethod = 2,
-        ?string $fileType = "url",
         ?string $writeGif = null
     ) {
         $disposalMethod = (null !== $disposalMethod) ? $disposalMethod : 2;
@@ -99,6 +101,8 @@ class GifEncoder {
             exit("Need a delay");
         }
 
+        $this->transparentColor = chr($this->transRed).chr($this->transGreen).chr($this->transBlue);
+
         if (null !== $writeGif) {
             $this->openFileForWriting($writeGif);
         }
@@ -107,34 +111,23 @@ class GifEncoder {
         $delay = 30;
         $index = 0;
         foreach($gifSources as $gif) {
-            if ($fileType == "url") {
-                $f = fopen($gif, "rb");
-                $resource = fread($f, filesize($gif));
-                fclose($f);
-            } else if ($fileType == "bin") {
-                $resource = $gif;
-            } else {
-                exit("File method not defined - need to be url or bin");
-            }
-            $imageType = substr($resource, 0, 6);
-            if (!in_array($imageType, ["GIF87a"])) { // animated "GIF89a"
-                print $gif." is not a gif";
-                exit();
-            }
-            // set the first fram
-            if (null === $firstFrame) {
-                $firstFrame = $resource;
-                $this->addGifHeader($firstFrame);
-            }
-            $delay = (isset($gifDelays[$index])) ? $gifDelays[$index] : $delay;
+            $resource = $this->openGif($gif);
+            if (null !== $resource){
+                // set the first fram
+                if (null === $firstFrame) {
+                    $firstFrame = $resource;
+                    $this->addGifHeader($firstFrame);
+                }
+                $delay = (isset($gifDelays[$index])) ? $gifDelays[$index] : $delay;
 
-            $this->addFrameToGif($resource, $delay, $firstFrame);
+                $this->addFrameToGif($resource, $delay, $firstFrame);
 
-            if (null !== $writeGif) {
-                $this->cleanBufferToFile();
+                if (null !== $writeGif) {
+                    $this->cleanBufferToFile();
+                }
+
+                $index++;
             }
-
-            $index++;
         }
         $this->addGifFooter();
 
@@ -143,6 +136,20 @@ class GifEncoder {
         }
     }
 
+    private function openGif($gif): ?string
+    {
+        if (IMAGETYPE_GIF == exif_imagetype($gif)) {
+            $f = fopen($gif, "rb");
+            $resource = fread($f, filesize($gif));
+            fclose($f);
+            return $resource;
+        }
+        return null;
+    }
+
+    /**
+     * directly to file writing functions to decrease resource usage and speed up everything
+     */
     private $fileBuffer = null;
 
     private function openFileForWriting($filename)
@@ -174,13 +181,44 @@ class GifEncoder {
     private function addGifHeader(string $firstFrame) {
         // here we copy from the first frame width and height and Global Color Table specification
         // to animated gif
-        if (ord($firstFrame[10]) & 0x80) {
-            // GCT follows for 256 colors with resolution 3 × 8 bits/primary
-            $cmap = 3 * ( 2 << ( ord ( $firstFrame[10]) & 0x07));
+        // the lowest 3 bits represent the bit depth minus 1, the highest true bit means that the GCT is present
+        if ($this->isGCTPresent($firstFrame)) {
+            // get GCT map follows for 256 colors with resolution 3 × 8 bits/primary
+            $gctLength = $this->getGCTLength($firstFrame);
             $this->gif .= substr($firstFrame, 6, 7); // width and height from first image
-            $this->gif .= substr($firstFrame, 13, $cmap);  // color map
-            $this->gif .= "!\377\13NETSCAPE2.0\3\1" . $this->unsignedNumberOfRepetition($this->loops) . "\0";
+            $this->gif .= substr($firstFrame, self::COLORTABLE_POSITION, $gctLength);  // color map
+            $this->gif .= self::GIF_HEADER . $this->numbersToTwoBit($this->loops) . self::ZERO_BYTE;
         }
+    }
+
+    /**
+     * checks the highest bit from GCT field
+     * @param string $frame
+     * @return bool
+     */
+    private function isGCTPresent(string $frame): bool
+    {
+        return (ord($frame[self::GCT_POSITION]) & 0x80);
+    }
+
+    /**
+     * each color is presented in 3 bit series
+     * @param string $frame
+     * @return int
+     */
+    private function getGCTLength(string $frame): int
+    {
+        return 3 * $this->getNumberOfColors($frame);
+    }
+
+    private function getNumberOfColors(string $frame): int
+    {
+        return (2 << (ord($frame[self::GCT_POSITION]) & 0x07));
+    }
+
+    private function numbersToTwoBit($numb): string
+    {
+        return ( chr($numb & 0xFF) . chr(($numb >> 8) & 0xFF));
     }
 
     /*
@@ -202,16 +240,18 @@ class GifEncoder {
      */
     private function addFrameToGif($frame, $currentFrameLength, $firstFrame) {
 
-        $frame_start = 13 + 3 * ( 2 << ( ord ($frame[10]) & 0x07) );
-        $frame_end = strlen($frame) - $frame_start - 1;
+        $gctLength = $this->getGCTLength($frame);
 
-        // if local rgb is same as global we remove em
-        $frameColorRgbTable = substr($frame, 13, 3 * ( 2 << (ord($frame[10]) & 0x07) ) );
+        $frame_start = 13 + $gctLength;
+        $frame_end = strlen($frame) - $frame_start - 1; // -1 we dont take in the gif ender ;
+
+        // if local rgb is same as global we remove em so we separate it from frame
+        $frameColorRgbTable = substr($frame, self::COLORTABLE_POSITION, $gctLength);
         $frameImageData = substr($frame, $frame_start, $frame_end);
-        $frameLen = 2 << (ord($frame[10]) & 0x07);
+        $numberOfColorsInGCT = $this->getNumberOfColors($frame);
 
-        $firstFrameLength = 2 << (ord($firstFrame[10]) & 0x07);
-        $firstFrameColorRgbTable = substr($firstFrame, 13, 3 * ( 2 << (ord($firstFrame[10]) & 0x07) ) );
+        $numberOfColorsInFirstFrame = $this->getNumberOfColors($firstFrame);
+        $firstFrameColorRgbTable = substr($firstFrame, self::COLORTABLE_POSITION, $this->getGCTLength($firstFrame));
 
         // start of frame n
         // 21 F9
@@ -221,14 +261,13 @@ class GifEncoder {
         // \x0 marking no transparent color
         // \x0 marking end of GCE block
         $frameGraphicControlExtension =
-            "!\xF9\x04" .
+            self::GRAPHIC_CONTROL_START .
             chr(($this->disposalMethod << 2) + 0) .
-            chr(($currentFrameLength >> 0) & 0xFF) .
-            chr(($currentFrameLength >> 8) & 0xFF ) .
-            "\x0\x0";
+            $this->numbersToTwoBit($currentFrameLength) .
+            self::ZERO_BYTE . self::ZERO_BYTE;
 
-        // in frame there is a transparent color
-        if (ord($frame[10]) & 0x80) {
+        // in frame there is a gct block
+        if ($this->isGCTPresent($frame)) {
             // find the frames transparent color and set it to header as transparent color
             // 30D:   21 F9                    Graphic Control Extension (comment fields precede this in most files)
             // 30F:   04           4            - 4 bytes of GCE data follow
@@ -236,22 +275,16 @@ class GifEncoder {
             // 311:   00 00                     - delay for animation in hundredths of a second
             // 313:   10          16            - color #16 is transparent
             // 314:   00                        - end of GCE block
-            for ($j = 0; $j < (2 << (ord($frame[10]) & 0x07)); $j++) {
+            for ($j = 0; $j < $numberOfColorsInGCT; $j++) {
                 $index = 3 * $j;
-                // find the transparent color index and set it to frame header
-                if (
-                    ord($frameColorRgbTable[$index + 0]) == $this->transRed &&
-                    ord($frameColorRgbTable[$index + 1]) == $this->transGreen &&
-                    ord($frameColorRgbTable[$index + 2]) == $this->transBlue
-                ) {
+                // find the transparent color index and set it to frame header with chr($j)
+                if (substr($frameColorRgbTable, $index, 3) == $this->transparentColor) {
                     $frameGraphicControlExtension =
-                        "!\xF9\x04" .
+                        self::GRAPHIC_CONTROL_START .
                         chr(($this->disposalMethod << 2) + 1) .
-                        chr(($currentFrameLength >> 0) & 0xFF) .
-                        chr(($currentFrameLength >> 8) & 0xFF) .
+                        $this->numbersToTwoBit($currentFrameLength) .
                         chr($j) .
-                        "\x0";
-                    break;
+                        self::ZERO_BYTE;
                 }
             }
         }
@@ -263,20 +296,19 @@ class GifEncoder {
         // * 32D:   90 01 90 01  (400,400)  - Frame width and height: 400 × 400
         // * 331:   00                      - no local color table; no interlace
         // we switch the last byte on the next if, if there is a local color table
-        $frameImageDescriptor = substr($frameImageData, 0, 10);
-        $frameImageData = substr($frameImageData, 10, strlen($frameImageData) - 10);
+        $frameImageDescriptor = substr($frameImageData, 0, self::GCT_POSITION);
+        $frameImageData = substr($frameImageData, self::GCT_POSITION, strlen($frameImageData) - self::GCT_POSITION);
 
         // if there is a transparent color in frame
         // and if local and global frame length differ
         // and color tables are different
-        if (ord ($frame[10]) & 0x80 ||
-            $firstFrameLength !== $frameLen ||
-            $firstFrameColorRgbTable != $frameColorRgbTable) {
+        if ($this->isGCTPresent($frame) &&
+            ($numberOfColorsInFirstFrame != $numberOfColorsInGCT || $firstFrameColorRgbTable != $frameColorRgbTable)) {
 
             $byte = ord($frameImageDescriptor[9]);
             $byte |= 0x80;
             $byte &= 0xF8;
-            $byte |= (ord ($firstFrame[10]) & 0x07);
+            $byte |= (ord ($firstFrame[self::GCT_POSITION]) & 0x07);
             $frameImageDescriptor[9] = chr($byte);
         } else {
             // do not append frame rgb since the frame is same as first frame
@@ -290,12 +322,7 @@ class GifEncoder {
      * 3B                    File terminator
      */
     private function addGifFooter() {
-        $this->gif .= ";";
-    }
-
-    private function unsignedNumberOfRepetition($loops): string
-    {
-        return ( chr($loops & 0xFF) . chr(($loops >> 8) & 0xFF));
+        $this->gif .= "\x3B";
     }
 
     /**
