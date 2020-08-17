@@ -2,7 +2,7 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use Terminal\TerminalToGif;
-use Gif\GifEncoder;
+use Gif\AnimatedGif;
 
 $file = __DIR__."/game.ttyrec";
 
@@ -36,7 +36,8 @@ $endResult = "animated.gif";
 
 $a = time();
 // clear the result directly into buffer
-$gifEncoder = new GifEncoder($gifs, $onedelay, 1, 2, "url", $endResult);
+$gif = new AnimatedGif($gifs, $onedelay, 1, 2);
+$gif->write($endResult);
 $b = time();
 print "took ".($b-$a)." seconds".PHP_EOL; // takes 4 seconds
 

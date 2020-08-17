@@ -52,7 +52,7 @@ namespace Gif;
  * And that what we are creating here from existing gifs
  */
 
-class GifEncoder {
+class AnimatedGif {
 
     const GCT_POSITION = 10;
     const COLORTABLE_POSITION = 13;
@@ -64,6 +64,8 @@ class GifEncoder {
 
     private string $gif = self::GIF89a;
     private int $loops;
+    private array $gifSources;
+    private array $gifDelays;
     /*
         Disposal Methods:
         000: Not specified - 0
@@ -89,8 +91,7 @@ class GifEncoder {
         array $gifSources = [],
         array $gifDelays = [],
         int $loops = 0,
-        ?int $disposalMethod = 2,
-        ?string $writeGif = null
+        ?int $disposalMethod = 2
     ) {
         $disposalMethod = (null !== $disposalMethod) ? $disposalMethod : 2;
 
@@ -102,41 +103,44 @@ class GifEncoder {
         }
 
         $this->transparentColor = chr($this->transRed).chr($this->transGreen).chr($this->transBlue);
+        $this->gifSources = $gifSources;
+        $this->gifDelays = $gifDelays;
 
-        if (null !== $writeGif) {
-            $this->openFileForWriting($writeGif);
-        }
+    }
+
+    /**
+     * write the animated gif
+     * @param string $fileName
+     */
+    public function write(string $fileName)
+    {
+        $this->openFileForWriting($fileName);
 
         $firstFrame = null;
         $delay = 30;
         $index = 0;
-        foreach($gifSources as $gif) {
-            $resource = $this->openGif($gif);
-            if (null !== $resource){
-                // set the first fram
+        foreach($this->gifSources as $gif) {
+            $frame = $this->loadGif($gif);
+            if (null !== $frame){
+                // set the first frame
                 if (null === $firstFrame) {
-                    $firstFrame = $resource;
+                    $firstFrame = $frame;
                     $this->addGifHeader($firstFrame);
                 }
-                $delay = (isset($gifDelays[$index])) ? $gifDelays[$index] : $delay;
+                $delay = (int) (isset($this->gifDelays[$index])) ? $this->gifDelays[$index] : $delay;
 
-                $this->addFrameToGif($resource, $delay, $firstFrame);
+                $this->addFrameToGif($frame, $delay, $firstFrame);
 
-                if (null !== $writeGif) {
-                    $this->cleanBufferToFile();
-                }
-
+                $this->cleanBufferToFile();
                 $index++;
             }
         }
         $this->addGifFooter();
 
-        if (null !== $writeGif) {
-            $this->closeFileForWriting();
-        }
+        $this->closeFileForWriting();
     }
 
-    private function openGif($gif): ?string
+    private function loadGif($gif): ?string
     {
         if (IMAGETYPE_GIF == exif_imagetype($gif)) {
             $f = fopen($gif, "rb");
@@ -154,7 +158,12 @@ class GifEncoder {
 
     private function openFileForWriting($filename)
     {
-        $this->fileBuffer = fopen($filename, 'w');
+        try{
+            $this->fileBuffer = fopen($filename, 'w');
+        } catch (\Exception $exception) {
+            print($exception->getMessage());
+            die("Cannot open " . $filename . " for writing.");
+        }
     }
 
     private function cleanBufferToFile()
@@ -238,14 +247,12 @@ class GifEncoder {
      * 333:   FF           255       - 255 bytes of LZW encoded image data follow
      * 334:                data
      */
-    private function addFrameToGif($frame, $currentFrameLength, $firstFrame) {
-
+    private function addFrameToGif(string $frame, int $frameDuration, string $firstFrame)
+    {
         $gctLength = $this->getGCTLength($frame);
-
-        $frame_start = 13 + $gctLength;
-        $frame_end = strlen($frame) - $frame_start - 1; // -1 we dont take in the gif ender ;
-
-        // if local rgb is same as global we remove em so we separate it from frame
+        $frame_start = 13 + $gctLength; // remove header data
+        $frame_end = strlen($frame) - $frame_start - 1; // -1 so we dont take in the gif ender ; \x3B
+        // if local rgb is same as global we remove em so we separate it from frame for possible later use
         $frameColorRgbTable = substr($frame, self::COLORTABLE_POSITION, $gctLength);
         $frameImageData = substr($frame, $frame_start, $frame_end);
         $numberOfColorsInGCT = $this->getNumberOfColors($frame);
@@ -254,27 +261,19 @@ class GifEncoder {
         $firstFrameColorRgbTable = substr($firstFrame, self::COLORTABLE_POSITION, $this->getGCTLength($firstFrame));
 
         // start of frame n
-        // 21 F9
-        // 4
+        // 21 F9 04
         // - bit-fields 3x:3:1:1, 000|010|0|0 -> Restore to bg color
         // - 0.09 sec delay before painting next frame
-        // \x0 marking no transparent color
-        // \x0 marking end of GCE block
+        // \x0 marking no transparent color \x0 marking end of GCE block
         $frameGraphicControlExtension =
             self::GRAPHIC_CONTROL_START .
             chr(($this->disposalMethod << 2) + 0) .
-            $this->numbersToTwoBit($currentFrameLength) .
+            $this->numbersToTwoBit($frameDuration) .
             self::ZERO_BYTE . self::ZERO_BYTE;
 
         // in frame there is a gct block
         if ($this->isGCTPresent($frame)) {
             // find the frames transparent color and set it to header as transparent color
-            // 30D:   21 F9                    Graphic Control Extension (comment fields precede this in most files)
-            // 30F:   04           4            - 4 bytes of GCE data follow
-            // 310:   01                        - there is a transparent background color
-            // 311:   00 00                     - delay for animation in hundredths of a second
-            // 313:   10          16            - color #16 is transparent
-            // 314:   00                        - end of GCE block
             for ($j = 0; $j < $numberOfColorsInGCT; $j++) {
                 $index = 3 * $j;
                 // find the transparent color index and set it to frame header with chr($j)
@@ -282,7 +281,7 @@ class GifEncoder {
                     $frameGraphicControlExtension =
                         self::GRAPHIC_CONTROL_START .
                         chr(($this->disposalMethod << 2) + 1) .
-                        $this->numbersToTwoBit($currentFrameLength) .
+                        $this->numbersToTwoBit($frameDuration) .
                         chr($j) .
                         self::ZERO_BYTE;
                 }
@@ -323,17 +322,5 @@ class GifEncoder {
      */
     private function addGifFooter() {
         $this->gif .= "\x3B";
-    }
-
-    /**
-     *
-     * @return string
-     */
-    public function writeGif(string $filename): string
-    {
-        $fp = fopen($filename, "w+");
-        fwrite($fp, $this->gif);
-        fclose($fp);
-        return $filename;
     }
 }

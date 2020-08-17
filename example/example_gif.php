@@ -2,7 +2,7 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use Terminal\TerminalToGif;
-use Gif\GifEncoder;
+use Gif\AnimatedGif;
 
 $file = __DIR__."/game.ttyrec";
 
@@ -16,5 +16,6 @@ $terminalToGif->setFgColor(0, 0, 255);
 $terminalToGif->screenToGif(6410, "test3.gif");
 
 // make animated gif from them
-$gifEncoder = new GifEncoder(["test3.gif", "test2.gif", "test.gif"], [100, 100, 200], 1, 2);
-$gifEncoder->writeGif("animated.gif");
+$animated = new AnimatedGif(["test3.gif", "test2.gif", "test.gif"], [100, 100, 200], 1, 2);
+$animated->write("animated.gif");
+
