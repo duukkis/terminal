@@ -2,7 +2,8 @@
     "name": "ttyrec/terminal",
     "require": {
         "php": "7.4.*",
-        "ext-gd": "*"
+        "ext-gd": "*",
+        "ext-exif": "*"
     },
     "authors": [
         {

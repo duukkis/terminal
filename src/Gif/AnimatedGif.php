@@ -3,6 +3,23 @@
 namespace Gif;
 
 /*
+ *  GIFEncoder Version 2.0 by László Zsidi
+ *  https://github.com/jacoka/GIFEncoder/blob/master/GIFEncoder.class.php
+ *  Modifications by Duukkis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
  * GIF89a is https://en.wikipedia.org/wiki/GIF
  * byte#  hexadecimal  text or
  * (hex)               value         Meaning
@@ -52,6 +69,8 @@ namespace Gif;
  * And that what we are creating here from existing gifs
  */
 
+use Exception;
+
 class AnimatedGif {
 
     const GCT_POSITION = 10;
@@ -80,6 +99,10 @@ class AnimatedGif {
     private int $transGreen = 255;
     private int $transBlue = 255;
     private string $transparentColor = '';
+
+    private int $numberOfColorsInFirstFrame = 0;
+    private string $firstFrameColorRgbTable = "";
+    private int $firstFrameEndian;
 
     /*
      * @param array $gifSources - sources
@@ -125,11 +148,13 @@ class AnimatedGif {
                 // set the first frame
                 if (null === $firstFrame) {
                     $firstFrame = $frame;
+                    //  set the first frame items to be reused
+                    $this->setFirstFrame($frame);
                     $this->addGifHeader($firstFrame);
                 }
                 $delay = (int) (isset($this->gifDelays[$index])) ? $this->gifDelays[$index] : $delay;
 
-                $this->addFrameToGif($frame, $delay, $firstFrame);
+                $this->addFrameToGif($frame, $delay);
 
                 $this->cleanBufferToFile();
                 $index++;
@@ -140,11 +165,22 @@ class AnimatedGif {
         $this->closeFileForWriting();
     }
 
-    private function loadGif($gif): ?string
+    /**
+     * set these so we don't have to do it in every loop
+     * @param string $firstFrame
+     */
+    private function setFirstFrame(string $firstFrame): void
     {
-        if (IMAGETYPE_GIF == exif_imagetype($gif)) {
-            $f = fopen($gif, "rb");
-            $resource = fread($f, filesize($gif));
+        $this->numberOfColorsInFirstFrame = $this->getNumberOfColors($firstFrame);
+        $this->firstFrameColorRgbTable = substr($firstFrame, self::COLORTABLE_POSITION, $this->getGCTLength($firstFrame));
+        $this->firstFrameEndian = (ord ($firstFrame[self::GCT_POSITION]) & 0x07);
+    }
+
+    private function loadGif(string $fileName): ?string
+    {
+        if (IMAGETYPE_GIF == exif_imagetype($fileName)) {
+            $f = fopen($fileName, "rb");
+            $resource = fread($f, filesize($fileName));
             fclose($f);
             return $resource;
         }
@@ -156,23 +192,23 @@ class AnimatedGif {
      */
     private $fileBuffer = null;
 
-    private function openFileForWriting($filename)
+    private function openFileForWriting(string $filename): void
     {
-        try{
+        try {
             $this->fileBuffer = fopen($filename, 'w');
-        } catch (\Exception $exception) {
+        } catch (Exception $exception) {
             print($exception->getMessage());
             die("Cannot open " . $filename . " for writing.");
         }
     }
 
-    private function cleanBufferToFile()
+    private function cleanBufferToFile(): void
     {
         fwrite($this->fileBuffer, $this->gif);
         $this->gif = '';
     }
 
-    private function closeFileForWriting()
+    private function closeFileForWriting(): void
     {
         $this->cleanBufferToFile();
         fclose($this->fileBuffer);
@@ -247,7 +283,7 @@ class AnimatedGif {
      * 333:   FF           255       - 255 bytes of LZW encoded image data follow
      * 334:                data
      */
-    private function addFrameToGif(string $frame, int $frameDuration, string $firstFrame)
+    private function addFrameToGif(string $frame, int $frameDuration)
     {
         $gctLength = $this->getGCTLength($frame);
         $frame_start = 13 + $gctLength; // remove header data
@@ -256,10 +292,6 @@ class AnimatedGif {
         $frameColorRgbTable = substr($frame, self::COLORTABLE_POSITION, $gctLength);
         $frameImageData = substr($frame, $frame_start, $frame_end);
         $numberOfColorsInGCT = $this->getNumberOfColors($frame);
-
-        $numberOfColorsInFirstFrame = $this->getNumberOfColors($firstFrame);
-        $firstFrameColorRgbTable = substr($firstFrame, self::COLORTABLE_POSITION, $this->getGCTLength($firstFrame));
-
         // start of frame n
         // 21 F9 04
         // - bit-fields 3x:3:1:1, 000|010|0|0 -> Restore to bg color
@@ -302,12 +334,12 @@ class AnimatedGif {
         // and if local and global frame length differ
         // and color tables are different
         if ($this->isGCTPresent($frame) &&
-            ($numberOfColorsInFirstFrame != $numberOfColorsInGCT || $firstFrameColorRgbTable != $frameColorRgbTable)) {
+            ($this->numberOfColorsInFirstFrame != $numberOfColorsInGCT || $this->firstFrameColorRgbTable != $frameColorRgbTable)) {
 
             $byte = ord($frameImageDescriptor[9]);
             $byte |= 0x80;
             $byte &= 0xF8;
-            $byte |= (ord ($firstFrame[self::GCT_POSITION]) & 0x07);
+            $byte |= $this->firstFrameEndian;
             $frameImageDescriptor[9] = chr($byte);
         } else {
             // do not append frame rgb since the frame is same as first frame
@@ -320,7 +352,8 @@ class AnimatedGif {
      * adds the file terminator 3B = ;
      * 3B                    File terminator
      */
-    private function addGifFooter() {
+    private function addGifFooter(): void
+    {
         $this->gif .= "\x3B";
     }
 }
