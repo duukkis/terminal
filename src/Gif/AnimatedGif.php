@@ -74,13 +74,14 @@ use Exception;
 class AnimatedGif {
 
     const GCT_POSITION = 10;
+    const IMAGE_DESCRIPTOR_LEN = 10;
     const COLORTABLE_POSITION = 13;
     // GIF header 6 bytes
     const GIF89a = "GIF89a";
     const GRAPHIC_CONTROL_START = "\x21\xF9\x04";
     const GIF_HEADER = "!\377\13NETSCAPE2.0\3\1";
     const ZERO_BYTE = "\x0";
-
+    // the actual gif we are building
     private string $gif = self::GIF89a;
     private int $loops;
     private array $gifSources;
@@ -98,11 +99,16 @@ class AnimatedGif {
     private int $transRed = 255;
     private int $transGreen = 255;
     private int $transBlue = 255;
+    // used for comparison in frame adding
     private string $transparentColor = '';
 
+    // some helper variables for comparisons
     private int $numberOfColorsInFirstFrame = 0;
     private string $firstFrameColorRgbTable = "";
     private int $firstFrameEndian;
+
+    // variable to hold the filebuffer open
+    private $fileBuffer = null;
 
     /*
      * @param array $gifSources - sources
@@ -116,9 +122,8 @@ class AnimatedGif {
         int $loops = 0,
         ?int $disposalMethod = 2
     ) {
-        $disposalMethod = (null !== $disposalMethod) ? $disposalMethod : 2;
-
         $this->loops = abs($loops);
+        /** @noinspection PhpFieldAssignmentTypeMismatchInspection */
         $this->disposalMethod = (in_array($disposalMethod, [0,1,2,3])) ? $disposalMethod : 2;
 
         if (empty($gifDelays)) {
@@ -189,9 +194,8 @@ class AnimatedGif {
 
     /**
      * directly to file writing functions to decrease resource usage and speed up everything
+     * @param string $filename
      */
-    private $fileBuffer = null;
-
     private function openFileForWriting(string $filename): void
     {
         try {
@@ -327,8 +331,8 @@ class AnimatedGif {
         // * 32D:   90 01 90 01  (400,400)  - Frame width and height: 400 × 400
         // * 331:   00                      - no local color table; no interlace
         // we switch the last byte on the next if, if there is a local color table
-        $frameImageDescriptor = substr($frameImageData, 0, self::GCT_POSITION);
-        $frameImageData = substr($frameImageData, self::GCT_POSITION, strlen($frameImageData) - self::GCT_POSITION);
+        $frameImageDescriptor = substr($frameImageData, 0, self::IMAGE_DESCRIPTOR_LEN);
+        $frameImageData = substr($frameImageData, self::IMAGE_DESCRIPTOR_LEN, strlen($frameImageData) - self::IMAGE_DESCRIPTOR_LEN);
 
         // if there is a transparent color in frame
         // and if local and global frame length differ
@@ -342,7 +346,7 @@ class AnimatedGif {
             $byte |= $this->firstFrameEndian;
             $frameImageDescriptor[9] = chr($byte);
         } else {
-            // do not append frame rgb since the frame is same as first frame
+            // do not append frame rgb since the frame has the same as first frame / global
             $frameColorRgbTable = '';
         }
         $this->gif .= $frameGraphicControlExtension . $frameImageDescriptor . $frameColorRgbTable . $frameImageData;
