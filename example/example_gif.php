@@ -16,6 +16,6 @@ $terminalToGif->setFgColor(0, 0, 255);
 $terminalToGif->screenToGif(6410, "test3.gif");
 
 // make animated gif from them
-$animated = new AnimatedGif(["test3.gif", "test2.gif", "test.gif"], [100, 100, 200], 1, 2);
+$animated = new AnimatedGif(["test3.gif", "test2.gif", "test.gif"], [100, 100, 200], 0, 2);
 $animated->write("animated.gif");
 
