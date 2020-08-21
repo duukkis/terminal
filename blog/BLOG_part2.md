@@ -133,7 +133,7 @@ Call the ```openFileForWriting``` at the beginning of gif creation, ```cleanBuff
 
 ![](images/animated.gif)
 
-Somekind of lesson learned ender.
+The two parts of this project were different and both very interesting in their own way. The interpretting of vt100-commands had clean new structure but some of the commands like backspace character brought intriguing aspects on building this. On both the parts I had to research lots of background knowledge from the specifications. The animated gif building part was pretty complex refactoring project. It took at least 10 iterations before I got the code into a shape that I wanted. On the vt100-terminal part I broke the code once, but the debugging, what is wrong now, took longer time than on refactoring part. The refactoring is nice as you have a working code, so you always know if it's working or not and if it's not, you can revert the part you have just changed. When building something new you have problems that haven't been solved yet. Both skills are very important for a developer.
 
 [Link to repository](https://github.com/duukkis/terminal)
 
