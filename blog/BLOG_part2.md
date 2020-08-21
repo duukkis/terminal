@@ -2,19 +2,22 @@
 # Making an animated gif from a recorded Nethack-game - Part 2 / 2
 
 ## Part 2: Making an animated gif with PHP
-I came across ttyrec file, a file that contains recorded Nethack-game. I wanted to make an animated gif out of it.
+I came across ttyrec file, a file that contains recorded Nethack-game. NetHack is an open source single-player roguelike video game, first released in 1987. I wanted to make an animated gif out of it.
+
+![](images/NethackScreenshot.gif)
+[Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
 
 [In part one we have interpretted a ttyrec-file into a 6415 different gifs.](BLOG.md)
 
-I have a transformed a ttyrec-file into a 6415 different gifs. How to make an animated gif out of those gifs? Here again there is ready tools starting from ffmpeg, a command tool that is capable of doing any kind of media files and transformations. Then again, I want to define the delays directly in code so that I can get the delays exactly the same as in original ttyrec-file and possibly modify the delays. I sterted with some googling. What are the options? Has someone already made this? 
+I have a transformed a ttyrec-file into a 6415 different gifs. How to make an animated gif out of those gifs? Here again there is ready tools starting from ffmpeg, a command tool that is capable of doing any kind of media files and transformations. Then again, I want to define the delays directly in code so that I can get the delays exactly the same as in original ttyrec-file and possibly modify the delays. I started with some googling. What are the options? Has someone already made this? 
 
-My limitations were that I wanted the tool to be done with PHP as the vt100-terminal interpretter was already done with that and I could package them to together. All I could find was a code done 12 years ago, copied across the internet which looked pretty bad. Did not find other options. After some debugging, I realized that the code builds the gif from existing gifs to a new gif with bitwise operations and concatenating individual gifs into a single gif. 
+My limitations were that I wanted the tool to be done with PHP as the vt100-terminal interpretter was already done with that and I could package them to together. All I could find was a piece of code that was done 12 years ago. The code was also copied across the internet but the code looked pretty bad. It had no comments, the variables were non descriptive and there were very clear errors in it. After a while decided that I had no other options. Copied the code and started thinking what was happening there. After some debugging, I realized that the code builds the animated gif from existing gifs to a new gif with bitwise operations and at the end concatenating individual gifs into a single gif.
 
 > I realized that this programmer had made something brilliant and amazing but at the same time something undocumented and very difficult to understand.
 
-Tried out the code and it worked. So started my refactoring. First before anything made a test to verify the functionality. Just a script that can be run and verify that the code still works. Before a commit or a bigger change, run it, so you can be sure that the code still works and you haven't broken anything.
+Tried out the code and it worked. So started my refactoring. First before anything I made a test to verify the functionality. Just a script that creates an animated gif from a list of gifs. I could verify after each modification that the code still works. After a bigger change, run it, so you can be sure that the code still works and you haven't broken anything.
 
-Started with the class variables
+Then to refactoring. Started with the class variables
 ___
 
 ![](images/1.png)
@@ -23,11 +26,11 @@ Looks ok. We have an array and some ints - no descriptive names. Skip this for n
 
 ___
 
-Then we check the constructor.
+Then onward to the constructor.
 
 ![](images/2.png)
 
-We have a constructor with some checks. First we need to have ```$GIF_src``` and ```$GIF_dly``` as arrays otherwise we have an error "Does not supported function for only one image!" and ```$this->COL``` is some sort of color, also there is ```$GIF_mod``` that tells if the GIF_src is a list of filenames or a list of opened gifs as strings.
+We have a constructor with some checks. First we need to have ```$GIF_src``` and ```$GIF_dly``` as arrays otherwise we have an error "Does not supported function for only one image!". ```$this->COL``` is some sort of color, also there is ```$GIF_mod``` that tells if the GIF_src is a list of filenames or a list of opened gifs as strings.
 
 > Let's fix this
 
@@ -35,14 +38,15 @@ We have a constructor with some checks. First we need to have ```$GIF_src``` and
 
 * Choose descriptive variable names
 * In PHP 7.4 has strict typing of variables, lets give types to variables
-* Also I realized at some point that $GIF_LOP is an integer that tells how many times animated gif loops and $GIF_DIS is disposal method of background color between frames and that can have four values defined in specs of gif.
+* Also I realized at some point that $GIF_LOP is an integer that tells how many times animated gif loops. Rename that.
+* $GIF_DIS is disposal method of background color between frames and that can have four values defined in specs of gif.
     - Disposal Methods:
     - 000: Not specified - 0
     - 001: Do not dispose - 1
     - 010: Restore to BG color - 2
     - 011: Restore to previous - 3
-* So valid values are 0, 1, 2, 3.
-* Notice that we don't need to test anymore are the variables arrays or not because PHP will throw an error if they are not that type
+* So valid values are 0, 1, 2, 3. Rename and validate the value.
+* Notice that we don't need to test anymore are the variables arrays or not because PHP will throw an error if they are not that type as they are typed.
 
 ___
 
@@ -50,20 +54,20 @@ Then continue with the constructor.
 
 ![](images/3.png)
 
-The $this->BUF has the gifs in a array of strings. Also code checks that the files are gifs and also a check that GIF89a gifs are not animated gifs. And then in the constructor we add the gif header, add individual gifs and the the gif footer.
+The ```$this->BUF``` has the gifs in a string array. Also code checks that the files are gifs and also that GIF89a gifs are not animated gifs. After checks in the constructor we add the gif header, add individual gifs and lastly the gif footer is added.
 
 > Lets fix this
 
 ![](images/3fixed.png)
 
 * Make a separate function for constructing the actual gif. The idea is that class contructor sets the variables and then we have a public function that actually does something
-* We loop the gifs, open them one by one. On the first round we add header, then we add the frames and finally we add the footer.
+* We loop the gifs, open them one by one. On the first round we add header and firstFrame that we need later. Then we add the frames and finally we add the footer.
 * Removed static method calls ```GIFEncoder::GIFAddHeader```. Even the old code uses $this variables, so nothing static about this
-* When looking at loadGif function, I actually made the functionality worse. I don't check if the gif is animated or not. I rely on the user not to send animated gifs to this class. So I'm going to rely on the programmer.
+* When looking at loadGif function, I actually made the functionality worse. I don't check if the gif is animated or not. I rely on the user not to send animated gifs to this class. So I'm going to rely on the programmer. The check can be done somewhere else if needed.
 
 ___
 
-Then lets check those GIFAddHeader and GIFAddFooter functions.
+Then lets check those helper-functions GIFAddHeader and GIFAddFooter.
 
 ![](images/4a.png)
 ![](images/4c.png)
@@ -73,11 +77,11 @@ What. Is. Happening. Here. Wikipedia to the resque and perticulary [Wikipedia's 
 
 ![](images/4fixed.png)
 
-1. The magical strings to constants - they don't change
+1. Put the magical strings to constants - they don't change
 2. Send the bitwise operations (<< & 0x07) to a named functions. So now we have isGCTPresent and getGCTlength functions.
 3. $cmap is actually length of color table, so name it correctly
 4. Haven't actually tested what happens if function ```isGCTPresent``` returns false, we have no gif header, so most likely something fatal. Tough luck.
-5. Added comments. There is no way that this can be commented too much since not a lot of people know how to encode a gif properly.
+5. Added comments. There is no way that this can be commented too much since there is not a lot of people who know how to encode a gif properly.
 
 ---
 
@@ -89,19 +93,19 @@ Scary looking stuff. Here we initialize some variables. ```$this->BUF``` has the
 
 > Let's Fix this.
 
-* First we remove the firstFrame. Create a function that is called in the initial loop where we set some variables from the first frame and after that they are reusable for frame 1, 2, 3, 4, ... n. So no need to calculate these in every loop.
+* First we remove the firstFrame. Create a function that is called in the initial loop where we set some variables from the first frame and after that they are reusable for frame 1, 2, 3, 4, ... n. So no need to extract these values in every loop.
 
 ![](images/5fixeda.png)
 
-Then the rest of the beginning, we just rename variables and extract functions.
+Then the rest of the beginning of function, we just rename variables and extract functions. Not the prettiest, but will do.
 ![](images/5fixed.png)
 
 Then continue with the function. There is more.
 
 ![](images/6.png)
 
-* If the initialization of color is not set (> -1) - just set the color at the beginning and no need for that
-* Then a comparison and a switch case, where we compare the the first character of ```$Locals_tmp```. The "," is the beginning of image descriptor block, don't know why the other one is there - just remove that and we get this
+* If the initialization of color is not set ```($this->COL > -1)``` we have a check - we just set the color at the constructor and we have no need for that
+* Then a some sort of comparison and a switch case, where we compare the the first character of ```$Locals_tmp```. The "," is the beginning of image descriptor block, don't know why the other one is there - just remove that and we get this
 
 ![](images/6fixed.png)
 
@@ -111,11 +115,11 @@ and the substrings at the end are image data and image descriptor.
 
 Few more lines to go.
 ![](images/7.png)
-The $this->IMG > -1 is to check if this is the first frame and then three a bit similar blocks of code. What the rest actually is an if else condition. If the global color table of a gif exists and the number of colors or the color table differ from each other we need to add that, otherwise that is the same as the global and we ignore the local color table. 
+The ```$this->IMG > -1``` is to check if this is the first frame and then three a bit similar blocks of code. The same can be achieved with a single if else condition. If the global color table of a gif exists and the number of colors or the color table differ from each other we need to add that, otherwise that is the same as the global and we ignore the local color table. 
 
 ![](images/7fixed.png)
 
-And that's it.
+And that's it. Refactored.
 
 ---
 
@@ -125,7 +129,7 @@ That was because the code builds a single string before outputting anything. Nee
 
 ![](images/8.png)
 
-Call the openFileForWriting at the beginning of gif creation, cleanBufferToFile in the for loop where we add the gifs and closeFileForWriting at the end. Cool. This helped on two things. The execution time went from 63 seconds and running out of memory to 4 seconds and writing succesfully a 28 MB animated gif.
+Call the ```openFileForWriting``` at the beginning of gif creation, ```cleanBufferToFile``` in the for loop where we add the gifs and ```closeFileForWriting``` at the end. Cool. This helped on two things. The execution time went from 63 seconds and running out of memory to 4 seconds and writing succesfully a 28 MB animated gif.
 
 ![](images/animated.gif)
 
