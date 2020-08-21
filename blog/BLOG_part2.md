@@ -8,9 +8,9 @@ I came across ttyrec file, a file that contains recorded Nethack-game. I wanted 
 
 I have a transformed a ttyrec-file into a 6415 different gifs. How to make an animated gif out of those gifs? Here again there is ready tools starting from ffmpeg, a command tool that is capable of doing any kind of media files and transformations. Then again, I want to define the delays directly in code so that I can get the delays exactly the same as in original ttyrec-file and possibly modify the delays. I sterted with some googling. What are the options? Has someone already made this? 
 
-My limitations were that I wanted the tool to be done with PHP as the vt100-terminal interpretter was already done with that and I could package them to together. All I could find was a code done 12 years ago, copied across the internet which looked horrible. Did not find other options. After some debugging, I realized that the code builds the gif from existing gifs to a new gif with bitwise operations and concatenating individual gifs into a single gif. 
+My limitations were that I wanted the tool to be done with PHP as the vt100-terminal interpretter was already done with that and I could package them to together. All I could find was a code done 12 years ago, copied across the internet which looked pretty bad. Did not find other options. After some debugging, I realized that the code builds the gif from existing gifs to a new gif with bitwise operations and concatenating individual gifs into a single gif. 
 
-> I realized that this programmer had made something brilliant and amazing but at the same time something undocumented and horrible.
+> I realized that this programmer had made something brilliant and amazing but at the same time something undocumented and very difficult to understand.
 
 Tried out the code and it worked. So started my refactoring. First before anything made a test to verify the functionality. Just a script that can be run and verify that the code still works. Before a commit or a bigger change, run it, so you can be sure that the code still works and you haven't broken anything.
 
@@ -23,7 +23,7 @@ Looks ok. We have an array and some ints - no descriptive names. Skip this for n
 
 ___
 
-Then we check the constructor. The horrification starts.
+Then we check the constructor.
 
 ![](images/2.png)
 
@@ -129,7 +129,7 @@ Call the openFileForWriting at the beginning of gif creation, cleanBufferToFile 
 
 ![](images/animated.gif)
 
-This was very educative and at the end fun project that took roughly 20 hours of my time. ... something about something for the end.
+Somekind of lesson learned ender.
 
 [Link to repository](https://github.com/duukkis/terminal)
 
