@@ -1,7 +1,7 @@
 
 # Making an animated gif from a recorded Nethack-game - Part 1 / 2
 
-## Part 1: Making a vt100 interpretter with PHP
+## Part 1: Making a VT100 command interpreter with PHP
 
 I came across ttyrec file, a file that contains recorded NetHack-game. NetHack is an open source single-player roguelike video game, first released in 1987. The game is played in terminal screen and looks like this.
 
@@ -101,11 +101,14 @@ Nice. After doing this, I have 6415 individual gif files. Now we come to next pr
 
 [Part 2: Making an animated gif with PHP](BLOG_part2.md)
 
---- 
-
 [Link to repository](https://github.com/duukkis/terminal)
 
-> Duukkis is the god of Internet. He has been building the Internet for 20 years in multiple various size projects. He solves customer's problems with his infinite wisdom and confidence.
+[ANSI Escape sequences - VT100](http://ascii-table.com/ansi-escape-sequences-vt-100.php)
+
+--- 
+
+![](images/herbie.png)
+Duukkis is the god of Internet. He has been building the Internet for 20 years in multiple various size projects. Duukkis solves customer needs efficiently and with long lasting solutions. He is a developer, architect and a nice guy.
 
 
 
