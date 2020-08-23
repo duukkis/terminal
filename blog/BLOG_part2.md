@@ -132,14 +132,21 @@ That was because the code builds a single string before outputting anything. Nee
 Call the ```openFileForWriting``` at the beginning of gif creation, ```cleanBufferToFile``` in the for loop where we add the gifs and ```closeFileForWriting``` at the end. Cool. This helped on two things. The execution time went from 63 seconds and running out of memory to 4 seconds and writing succesfully a 28 MB animated gif.
 
 ![](images/animated.gif)
+[Image Source: alt.org Nethack server](https://alt.org/nethack/)
 
-The two parts of this project were different and both very interesting in their own way. The interpretting of vt100-commands had clean new structure but some of the commands like backspace character brought intriguing aspects on building this. On both the parts I had to research lots of background knowledge from the specifications. The animated gif building part was pretty complex refactoring project. It took at least 10 iterations before I got the code into a shape that I wanted. On the vt100-terminal part I broke the code once, but the debugging, what is wrong now, took longer time than on refactoring part. The refactoring is nice as you have a working code, so you always know if it's working or not and if it's not, you can revert the part you have just changed. When building something new you have problems that haven't been solved yet. Both skills are very important for a developer.
+
+The two parts of this project were different and both very interesting in their own way. The interpretting of vt100-commands had clean new structure but some of the commands like backspace character brought intriguing issues when building that. Debugging the terminal commands took time. For both the cases I had to research lots of background knowledge from the specifications.
+
+The animated gif building part was straightforward refactoring project. And that was fun. It took at least 10 iterations before I got the animated gif building into a shape that I wanted. The refactoring is nice, as you have a working code, so you always know if it's working or not. If the code breaks, you can revert the part you have just changed. When building something new you have problems that haven't been solved yet. The skill of refactoring and building something new are very important for a developer.
+
+[Part 1: Making a VT100 command interpreter with PHP](BLOG.md)
 
 [Link to repository](https://github.com/duukkis/terminal)
 
-> Duukkis is the god of Internet. He has been building the Internet for 20 years in multiple various size projects. He solves customer's problems with his infinite wisdom and confidence.
+[Wikipedia GIF](https://en.wikipedia.org/wiki/GIF)
 
 ---
 
-> Finally I would like to give my thanks to [Wikipedia](https://en.wikipedia.org/wiki/GIF) to a page that had the actual bytes of a gif. So in short the gif consists of header, information about the gif width and height, information about colors, background color index, pixel aspect ratio and finally there is color table, graphic control extension where we have for example transparent color index and then finally the image data and finally closing byte ```;```.
-___
+![](images/herbie.png)
+Duukkis is the god of Internet. He has been building the Internet for 20 years in multiple various size projects. Duukkis solves customer needs efficiently and with long lasting solutions. He is a developer, architect and a nice guy.
+
