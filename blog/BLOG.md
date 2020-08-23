@@ -3,21 +3,24 @@
 
 ## Part 1: Making a vt100 interpretter with PHP
 
-I came across ttyrec file, a file that contains recorded NetHack-game. NetHack is an open source single-player roguelike video game, first released in 1987. The game is played in terminal screen and looks like this.
+I came across a ttyrec file, a recorded NetHack-game in a text file. NetHack (for those who don't know) is an open source single-player roguelike video game, first released in 1987. The game is played in terminal screen and looks like this.
 
 ![](images/NethackScreenshot.gif)
 [Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
 
-Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player move by move. I wanted to make an animated gif out of it. Playing the ttyrec-file with PHP is a simple piece of code.
+Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player move by move. I wanted to make an animated gif out of it. Re-playing the ttyrec-file with PHP is a simple piece of code.
 ```
 $contents = file_get_contents("nethack.ttyrec");
 $prev = null;
 while(strlen($contents) > 0) {
+    // get the seconds, microseconds and length of one screen to an array
     $data = unpack('Vsec/Vusec/Vlen', $contents);
     $len = (int) $data["len"];
+    // get the actual printable screen and print it out
     $screen = substr($contents, 12, $len);
     print $screen;
     if ($prev !== null) {
+      // wait until it's time to print the next screen
       $timeoutInMicros = (1000000 * ($data["sec"] - prev["sec"])) + ($data["usec"] - prev["usec"]));
       usleep($timeoutInMicros);
     }
@@ -25,24 +28,26 @@ while(strlen($contents) > 0) {
     $contents = substr($contents, 12 + $len); // ready for next round
 }
 ```
-The animated gif with PHP is a bit trickier thing to do. There are some python tools that generate animated gif directly from a ttyrec-file. The issue with that was that there was no commands to stop the video at a certain frame or a command to speed up the video for rate 2 or to manipulate the screens. And those are the things I want easily to do. So time to do some coding.
+The animated gif with PHP is a bit trickier thing to do. There are some python tools that generate animated gif directly from a ttyrec-file. The issue with that was that there was no commands to stop the video at a certain frame or a command to speed up the video for rate 2 or to manipulate the screens. And those are the things I want easily to do. So time to do some coding. First I need to extract the screens from the file and interpret the commands to a printable format.
 
-Ttyrec-file is a text file that starts with the \[seconds from 1970-01-01 00:00:00\]/\[microseconds\]/\[length of content\] and then content of a screen, followed by a same kind of block of the next screen. The content is filled with vt100-commands that are used to move cursor and print characters in a terminal. They are identified with ESC-character and then a command to tell the terminal what to do. For example ```ESC[30m``` tells terminal to turn foreground color to white or ```ESC[2;24H``` to move cursor to row 2 column 24. Everything else is output to terminal.
+Ttyrec-file is a text file that starts with the \[seconds from 1970-01-01 00:00:00\]/\[microseconds\]/\[length of content\] and then content of a screen, followed by a same kind of block of the next screen. The content is filled with vt100-commands that are used to move cursor and print characters in a terminal. They are identified by an ESC-character and then a command which tells the terminal what to do. For example ```ESC[30m``` tells terminal to turn foreground color to white and ```ESC[2;24H``` command tells the terminal to move cursor to row 2 column 24. Everything else is outputted to terminal.
 
 ## The parser structure
 
-First I load the ttyrec-file into Terminal. Then I separate the text into screens and interpret the string into commands. The commands may or may not have an output to print. Output is a string which contains ascii string for output. I also added commands for backspace, newline and carriage return for easier interpretting later with a simple str_replace. The phases (1) and (2) in below picture.
+First I load the ttyrec-file into a class called Terminal. Then I separate the screens from the input and then interpret the strings into commands. The commands may or may not have a printable output. Output is a string which contains ascii characters which shape the dungeon, monsters and items shown in the first image. I also added commands for backspace, newline and carriage return for easier interpretting later with a simple str_replace. The phases (1) and (2) in below picture.
 
 ![](images/structure.jpg)
 
 
 # Interpretting the commands to present the actual terminal
 
-The screens follow each other, so from previous screen there might be characters left to the next screen. if I want to know what is printed in screen 401, I need to go through all the screens from 1 to 400 in case they leave any output to be printed in screen 401. All the commands have an output, which is the actual printable string. For some commands I added different variables to describe the command better. For example MoveArrowCommand has booleans up, down, left and right to determine which way to move the cursor. CursorMoveCommand has variables row and col to tell where to move the cursor before output. Interpretting those to actual output is just looping the commands of a screen. At the end we "print out" the output with parseOutputToTerminal-function.
+The screens follow each other, so from previous screen there might be characters left to the next screen. if I want to know what is printed in screen 401, I need to go through all the screens from 1 to 400 in case they leave any output to be printed in screen 401. All the commands have an output, which is the actual printable string. For some commands I added different variables to describe the command better. For example MoveArrowCommand has booleans up, down, left and right to determine which way to move the cursor. CursorMoveCommand has variables row and col to tell where to move the cursor before output. Interpretting commands to actual output is just looping the commands of a screen. At the end we "print out" the output with parseOutputToTerminal-function.
 
-(The (3) path in the above picture) We get the screen, loop the commands of the screen and output strings to build the actual console state.
+(The (3) path in the above picture) We get the screen, loop the commands of the screen and output strings to build the actual console state. The functions which interprets the commands looks like this.
 ```
-foreach ($commands as $command) {
+foreach ($screens as $screen) {
+  $commands = $screen->commands;
+  foreach ($commands as $command) {
     $commClass = get_class($command);
     switch($commClass)
     {
@@ -68,14 +73,17 @@ foreach ($commands as $command) {
         ...
 ```
 
-After this looping we have console array that is filled with terminal rows. We set the console back to screen object and then the current state is available for each screen. Then we can just output them into anything. Like to a text file.
+After this looping we have an array that is filled with rows that have an output. We set this ready array back to screen object so we can access the state of screen later. Then we can just output them into anything. Like to a text file.
 
 ```
-$lastLine = max(array_keys($this->console));
+// get screen 401
+$screen = $this->screens[401];
+$console = $screen->console;
+$lastLine = max(array_keys($console));
 $data = '';
 for ($i = 0;$i <= $lastLine;$i++) {
-  if (isset($this->console[$i])) {
-    $data .= $this->console[$i]->output;
+  if (isset($console[$i])) {
+    $data .= $console[$i]->output;
   }
   $data .= PHP_EOL;
 }
@@ -83,12 +91,15 @@ file_put_contents("screen.txt", $data);
 ```
 or to a gif
 ```
-$lastLine = max(array_keys($this->console));
+// get screen 401
+$screen = $this->screens[401];
+$console = $screen->console;
+$lastLine = max(array_keys($console));
 $im = imagecreate($this->imageWidth, $this->imageHeight);
 $this->setBackgroundColor($im);
 $textcolor = $this->getForegroundColor($im);
 for ($i = 1;$i <= lastLine;$i++) {
-    if (isset($this->console[$i])) {
+    if (isset($console[$i])) {
         $x = $this->margin;
         $y = $i * $this->fontHeight + $this->margin;
         $text = $this->console[$i]->output;
@@ -97,7 +108,7 @@ for ($i = 1;$i <= lastLine;$i++) {
 }
 imagegif($im, $filename);
 ```
-Nice. After doing this, I have 6415 individual gif files. Now we come to next problem. How do I combine them into a single animated gif?
+Nice. After doing this for all the screens, I have 6415 individual gif files. Now we come to next problem. How do I combine them into a single animated gif?
 
 [Part 2: Making an animated gif with PHP](BLOG_part2.md)
 
