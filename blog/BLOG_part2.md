@@ -147,5 +147,5 @@ The animated gif building part was straightforward refactoring project. And that
 ---
 
 ![](images/herbie.png)
-Duukkis is the god of Internet. He has been building the Internet for 20 years in multiple various size projects. Duukkis solves customer needs efficiently and with long lasting solutions. He is a developer, architect and a nice guy.
+Duukkis has been building the Internet for 20 years in multiple various size projects. He is a coder and maker of things. He has done over 70 Twitter-bots, a noun- and verb- conjugator with PHP and a portrait from 7366 pieces of Lego. He is a developer, architect and a nice guy.
 
