@@ -1,7 +1,5 @@
 
-# Making an animated gif from a recorded Nethack-game - Part 1 / 2
-
-## Part 1: Making a VT100 command interpreter with PHP
+# Making a VT100 command interpreter with PHP
 
 I came across a ttyrec file, a recorded NetHack-game in a text file. NetHack (for those who don't know) is an open source single-player roguelike video game, first released in 1987. The game is played in terminal screen and looks like this.
 
@@ -28,7 +26,7 @@ while(strlen($contents) > 0) {
     $contents = substr($contents, 12 + $len); // ready for next round
 }
 ```
-The animated gif with PHP is a bit trickier thing to do. There are some python tools that generate animated gif directly from a ttyrec-file. The issue with that was that there was no commands to stop the video at a frame that contains a string "Killed by" or a command to speed up the video to a specific length or to manipulate the screens via command line. And those were the things I wanted easily to do from a command line. So time to do some coding. First I need to extract the screens from the file and interpret the commands to a printable format.
+I wanted to find a screen which has "Killed by" text or manipulate screens via code. And those were the things I wanted easily to do from a command line. So time to do some coding. First I need to extract the screens from the file and interpret the commands to a printable format.
 
 Ttyrec-file is a text file that starts with the \[seconds from 1970-01-01 00:00:00\]/\[microseconds\]/\[length of content\] and then content of a screen, followed by a same kind of block of the next screen. The content is filled with vt100-commands that are used to move cursor and print characters in a terminal. They are identified by an ESC-character and then a command which tells the terminal what to do. For example ```ESC[30m``` tells terminal to turn foreground color to white and ```ESC[2;24H``` command tells the terminal to move cursor to row 2 column 24. Everything else is outputted to terminal.
 
@@ -108,6 +106,8 @@ for ($i = 1;$i <= lastLine;$i++) {
 }
 imagegif($im, $filename);
 ```
+![](images/terminal.png)
+
 Nice. After doing this for all the screens, I have 6415 individual gif files. Now we come to next problem. How do I combine them into a single animated gif?
 
 [Part 2: Making an animated gif with PHP](BLOG_part2.md)

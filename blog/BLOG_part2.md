@@ -1,13 +1,12 @@
 
-# Making an animated gif from a recorded Nethack-game - Part 2 / 2
+# Making an animated gif with PHP
 
-## Part 2: Making an animated gif with PHP
 I came across ttyrec file, a file that contains recorded Nethack-game. NetHack is an open source single-player roguelike video game, first released in 1987. I wanted to make an animated gif out of it.
 
 ![](images/NethackScreenshot.gif)
 [Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
 
-[In part one we have interpretted a ttyrec-file into a 6415 different gifs.](BLOG.md)
+[Previously I have interpretted a ttyrec-file into a 6415 different gifs.](BLOG.md)
 
 I have a transformed a ttyrec-file into a 6415 different gifs. How to make an animated gif out of those gifs? Here again there is ready tools starting from ffmpeg, a command tool that is capable of doing any kind of media files and transformations. Then again, I want to define the delays directly in code so that I can get the delays exactly the same as in original ttyrec-file and possibly modify the delays. I started with some googling. What are the options? Has someone already made this? 
 
