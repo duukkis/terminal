@@ -6,7 +6,7 @@ I came across a ttyrec file, a recorded NetHack-game in a text file. NetHack (fo
 ![](images/NethackScreenshot.gif)
 [Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
 
-Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player move by move. I wanted to make such animated gif that it ends with the image of a grave and I can build it from a command line of Raspberry Pi to a specific length of time. Re-playing the ttyrec-file with PHP is a simple piece of code.
+Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player move by move. I wanted to make such an animated gif that it ends with the image of a grave and I can build it from a command line of Raspberry Pi to a specific length of time. First I need to parse the ttyrec-file into a modifiable format. Re-playing the ttyrec-file with PHP is a simple piece of code.
 ```
 $contents = file_get_contents("nethack.ttyrec");
 $prev = null;
