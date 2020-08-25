@@ -6,7 +6,7 @@ I came across a ttyrec file, a recorded NetHack-game in a text file. NetHack (fo
 ![](images/NethackScreenshot.gif)
 [Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
 
-Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player move by move. I wanted to make such an animated gif that it ends with the image of a grave and I can build it from a command line of Raspberry Pi to a specific length of time. First I need to parse the ttyrec-file into a modifiable format. Re-playing the ttyrec-file with PHP is a simple piece of code.
+Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player move by move. I wanted to make an animated gif from that. Such a gif that it ends with the image of a grave and I can build it from a command line of Raspberry Pi to a specific length of time. First I need to parse the ttyrec-file into a editable form. Re-playing the ttyrec-file with PHP is a simple piece of code, but parsing is another thing.
 ```
 $contents = file_get_contents("nethack.ttyrec");
 $prev = null;
@@ -26,7 +26,7 @@ while(strlen($contents) > 0) {
     $contents = substr($contents, 12 + $len); // ready for next round
 }
 ```
-I wanted to find a screen which has "Killed by" text or manipulate screens via code. And those were the things I wanted easily to do from a command line. So time to do some coding. First I need to extract the screens from the file and interpret the commands to a printable format.
+I wanted to find a screen which has "Killed by" text and drop rest of the screens with a piece of code. So time to do some coding. First I need to extract the screens from the file and interpret the commands to a printable format.
 
 Ttyrec-file is a text file that starts with the \[seconds from 1970-01-01 00:00:00\]/\[microseconds\]/\[length of content\] and then content of a screen, followed by a same kind of block of the next screen. The content is filled with vt100-commands that are used to move cursor and print characters in a terminal. They are identified by an ESC-character and then a command which tells the terminal what to do. For example ```ESC[30m``` tells terminal to turn foreground color to white and ```ESC[2;24H``` command tells the terminal to move cursor to row 2 column 24. Everything else is outputted to terminal.
 
