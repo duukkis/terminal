@@ -31,6 +31,11 @@ class TerminalToGif
         $this->terminal->loopScreens();
     }
 
+    public function getTerminal(): Terminal
+    {
+        return $this->terminal;
+    }
+
     // setters
     public function setFont($font, $fontWidth, $fontHeight)
     {

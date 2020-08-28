@@ -79,7 +79,7 @@ class Terminal {
         /** @var Screen $screen */
         foreach ($this->screens as $screen) {
             if ($actual && null !== $prevScreen) {
-                $timeoutInMicros = $this->calculateDiffBetweenScreens($screen, $prevScreen);
+                $timeoutInMicros = self::calculateDiffBetweenScreens($screen, $prevScreen);
             }
             usleep($timeoutInMicros);
             print ($screen->screen);
@@ -89,7 +89,7 @@ class Terminal {
         }
     }
 
-    public function calculateDiffBetweenScreens(Screen $screen, Screen $previousScreen): int
+    public static function calculateDiffBetweenScreens(Screen $screen, Screen $previousScreen): int
     {
         return (1000000 * ($screen->sec - $previousScreen->sec)) + ($screen->usec - $previousScreen->usec);
     }
@@ -126,6 +126,21 @@ class Terminal {
     public function getConsole(): array
     {
         return $this->console;
+    }
+
+    public function getDurationInMicroseconds(): int
+    {
+        if (empty($this->screens)) {
+            return 0;
+        }
+        $firstScreen = $this->screens[0];
+        $lastScreen = $this->screens[count($this->screens) - 1];
+        return (1000000 * ($lastScreen->sec - $firstScreen->sec)) + ($lastScreen->usec - $firstScreen->usec);
+    }
+
+    public function getDurationInSeconds(): int
+    {
+        return ceil($this->getDurationInMicroseconds() / 1000000);
     }
 
     /**

@@ -2,24 +2,48 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use Terminal\TerminalToGif;
+use Terminal\Terminal;
 use Gif\AnimatedGif;
 
 $file = __DIR__."/game.ttyrec";
 
 $terminalToGif = new TerminalToGif($file);
 $terminalToGif->setFgColor(0, 0, 0);
+$terminal = $terminalToGif->getTerminal();
+$screens = $terminal->getScreens();
 
 $gifs = [];
 $onedelay = [5];
+$terminate = false;
+$terminatedOnScreen = 0;
 
-for ($i = 1;$i <= 6415;$i++) {
+for ($i = 1;$i < $terminal->numberOfScreens();$i++) {
     $fileName = "temp/".$i.".gif";
-    if (!file_exists($fileName)) {
+    if (!file_exists($fileName) && $terminatedOnScreen == 0) {
         $terminalToGif->screenToGif($i, $fileName);
     }
-    $gifs[] = $fileName;
+    if (strpos($screens[$i]->screen, "killed by") !== false
+       && strpos($screens[$i]->screen, "You died") !== false) {
+        // stop on the screen that has "killed by" and "You died"
+        $terminatedOnScreen = $i;
+    }
+    if ($terminatedOnScreen == 0) {
+        $gifs[] = $fileName;
+    }
 }
 print "gifs written".PHP_EOL;
+
+$durationInSeconds = $terminal->getDurationInSeconds();
+
+// scale duration into seconds
+$scaleDurationToSeconds = 120;
+$ratio = $scaleDurationToSeconds / $durationInSeconds;
+
+$delays = [];
+for ($i = 2;$i < $terminal->numberOfScreens();$i++) {
+    // hundred's of a second
+    $delays[] = max(round(Terminal::calculateDiffBetweenScreens($screens[$i], $screens[$i-1]) * $ratio / 10000), 1);
+}
 
 $endResult = "animated.gif";
 
@@ -36,7 +60,7 @@ $endResult = "animated.gif";
 
 $a = time();
 // clear the result directly into buffer
-$gif = new AnimatedGif($gifs, $onedelay, 1, 2);
+$gif = new AnimatedGif($gifs, $delays, 1, 2);
 $gif->write($endResult);
 $b = time();
 print "took ".($b-$a)." seconds".PHP_EOL; // takes 4 seconds
@@ -47,7 +71,7 @@ print "animated gif done".PHP_EOL;
 for ($i = 1;$i <= 6415;$i++) {
     $fileName = "temp/" . $i . ".gif";
     if (file_exists($fileName)) {
-        unlink($fileName);
+        // unlink($fileName);
     }
 }
 

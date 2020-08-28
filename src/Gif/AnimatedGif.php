@@ -112,7 +112,7 @@ class AnimatedGif {
 
     /*
      * @param array $gifSources - sources
-     * @param array $gifDelays - delays
+     * @param array $gifDelays - delays - hundreds of second 100 being 1 second
      * @param int $loops - loops
      * @param array $disposalMethod - see above
     */
