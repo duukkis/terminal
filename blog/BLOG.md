@@ -6,7 +6,7 @@ I came across a ttyrec file, a recorded NetHack-game in a text file. NetHack (fo
 ![](images/NethackScreenshot.gif)
 [Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
 
-Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player, move by move. I wanted to make an animated gif from that; such a gif that it ends with the image of a grave and I can build it from a command line of Raspberry Pi to a specific length of time. First, I need to parse the ttyrec-file into a editable form. Re-playing the ttyrec-file with PHP is a simple piece of code, but parsing is another issue.
+Some people record their games and share their games using this ttyrec-file format. The file contains the movements of a player, move by move. I wanted to make an animated gif from that; such a gif that it ends with the image of a grave and I can build it from a command line of Raspberry Pi to a specific length of time. First, I need to parse the ttyrec-file into a editable form. Re-playing the ttyrec-file with PHP is a simple piece of code, but parsing, so I can modify that, is another issue.
 ```
 $contents = file_get_contents("nethack.ttyrec");
 $prev = null;
@@ -39,7 +39,7 @@ First I load the ttyrec-file into a class called Terminal. Then I separate the s
 
 # Interpretting the commands to present the actual terminal
 
-The screens follow each other, so from previous screen there might be characters left to the next screen. if I want to know what is printed in screen 401, I need to go through all the screens from 1 to 400 in case they leave any output to be printed in screen 401. All the commands have an output, which is the actual printable string. For some commands I added different variables to describe the command better. For example MoveArrowCommand has booleans up, down, left and right to determine which way to move the cursor. CursorMoveCommand has variables row and col to tell where to move the cursor before output. Interpretting commands to actual output is just looping the commands of a screen. At the end we "print out" the output with parseOutputToTerminal-function.
+In ttyrec-format, the screens follow each other, and from previous screen there might be characters left to the next screen. if I want to know what is printed in screen 401, I need to go through all the screens from 1 to 400 in case they leave any output to be printed in screen 401. All the commands have an output, which is the actual printable string. For some commands I added different variables to describe the command better. For example MoveArrowCommand has booleans up, down, left and right to determine which way to move the cursor. CursorMoveCommand has variables row and col to tell where to move the cursor before output. Interpretting commands to actual output is just looping the commands of a screen. At the end we "print out" the output with parseOutputToTerminal-function.
 
 (The (3) path in the above picture) We get the screen, loop the commands of the screen and output strings to build the actual console state. The functions which interprets the commands looks like this.
 ```
