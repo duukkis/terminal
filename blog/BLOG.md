@@ -1,7 +1,7 @@
 
 # Making a VT100 command interpreter with PHP
 
-I came across a ttyrec file, a recorded NetHack-game in a text file. NetHack (for those who don't know) is an open source single-player roguelike video game, first released in 1987. The game is played in terminal screen and looks like this.
+I came across a [ttyrec](https://en.wikipedia.org/wiki/Ttyrec) file which held inside a recorded NetHack-game. NetHack (for those who don't know) is an open source single-player roguelike video game, first released in 1987. The game is played in terminal screen and looks like this.
 
 ![](images/NethackScreenshot.gif)
 [Image Source: Wikipedia](https://commons.wikimedia.org/wiki/File:NethackScreenshot.gif)
