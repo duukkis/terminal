@@ -8,6 +8,7 @@ use Terminal\Commands\ClearLineFromRightCommand;
 use Terminal\Commands\ClearScreenCommand;
 use Terminal\Commands\ClearScreenFromCursorCommand;
 use Terminal\Commands\ColorCommand;
+use Terminal\Commands\ColorCommand256;
 use Terminal\Commands\Command;
 use Terminal\Commands\CursorMoveCommand;
 use Terminal\Commands\IgnoreCommand;
@@ -198,6 +199,7 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ColorCommand::class:
+                    case ColorCommand256::class:
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ClearScreenFromCursorCommand::class:

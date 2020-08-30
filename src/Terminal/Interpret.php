@@ -7,6 +7,7 @@ use Terminal\Commands\ClearLineFromRightCommand;
 use Terminal\Commands\ClearScreenCommand;
 use Terminal\Commands\ClearScreenFromCursorCommand;
 use Terminal\Commands\ColorCommand;
+use Terminal\Commands\ColorCommand256;
 use Terminal\Commands\Command;
 use Terminal\Commands\CursorMoveCommand;
 use Terminal\Commands\IgnoreCommand;
@@ -67,6 +68,8 @@ class Interpret
     const CLEAR_LINE_FROM_RIGHT = "[K";
 
     const CURSOR_MOVE_PREG = "/\[([0-9]+);([0-9]+)H/";
+    const COLOR_256_PREG = "/\[38;5;([0-9]+)m/";
+
     const IGNORE = ['[?1049h', '[?1049l'];
 
     /**
@@ -112,6 +115,10 @@ class Interpret
         if (1 == preg_match(self::CURSOR_MOVE_PREG, $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
             return new CursorMoveCommand((int) $matches[1], (int) $matches[2], $output);
+        }
+        if (1 == preg_match(self::COLOR_256_PREG, $command, $matches)) {
+            $output = substr($command, strlen($matches[0]));
+            return new ColorCommand256((int) $matches[1], false, $output);
         }
         $partFour = substr($command, 0, 4);
         $restFour = substr($command, 4);
