@@ -22,13 +22,13 @@ for ($i = 1;$i < $terminal->numberOfScreens();$i++) {
     if (!file_exists($fileName) && $terminatedOnScreen == 0) {
         $terminalToGif->screenToGif($i, $fileName);
     }
+    if ($terminatedOnScreen == 0) {
+        $gifs[] = $fileName;
+    }
     if (strpos($screens[$i]->screen, "killed by") !== false
        && strpos($screens[$i]->screen, "You died") !== false) {
         // stop on the screen that has "killed by" and "You died"
         $terminatedOnScreen = $i;
-    }
-    if ($terminatedOnScreen == 0) {
-        $gifs[] = $fileName;
     }
 }
 print "gifs written".PHP_EOL;
@@ -71,11 +71,18 @@ print "animated gif done".PHP_EOL;
 for ($i = 1;$i <= 6415;$i++) {
     $fileName = "temp/" . $i . ".gif";
     if (file_exists($fileName)) {
-        // unlink($fileName);
+        unlink($fileName);
     }
 }
 
 print "done".PHP_EOL;
 
-// make a movie out of animated gif with
-// ffmpeg -i animated.gif -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" video.mp4
+// make twitter compatible movie out of animated gif with
+
+# ffmpeg -i animated.gif -pix_fmt yuv420p -vcodec libx264 -vf scale=640:-1 -acodec aac -vb 1024k -minrate 1024k -maxrate 1024k -bufsize 1024k -ar 44100  -ac 2  -strict experimental -r 30  out.mp4
+#------------------------------------ find dimenions with
+# ffprobe -v error -show_format -show_streams out.mp4
+#------------------------------------ then shorten the video to 2 min with 
+# ffmpeg -i out.mp4 -filter:v "setpts=(120/649)*PTS" output.mp4
+#------------------------------------ rerun the twitter compatibility filter
+# ffmpeg -i output.mp4 -pix_fmt yuv420p -vcodec libx264 -vf scale=640:-1 -acodec aac -vb 1024k -minrate 1024k -maxrate 1024k -bufsize 1024k -ar 44100  -ac 2  -strict experimental -r 30 twitter.mp4
