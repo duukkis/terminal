@@ -28,25 +28,31 @@ class Interpret
     const LINEFEED = "[Y";
     const CARRIAGE_RETURN  = "[Z";
 
-    const COLOR_FG_WHITE   = "[30m";
+    const HIDE_CURSOR   = "[?25l";
+    const SHOW_CURSOR   = "[?25h";
+    const RESET_COLORS   = "[39;49m";
+    const RESET   = "[m";
+  
+    const COLOR_FG_BLACK   = "[30m";
     const COLOR_FG_RED     = "[31m";
     const COLOR_FG_GREEN   = "[32m";
     const COLOR_FG_YELLOW  = "[33m";
     const COLOR_FG_BLUE    = "[34m";
     const COLOR_FG_MAGENTA = "[35m";
     const COLOR_FG_CYAN    = "[36m";
-    const COLOR_FG_WHITE_2 = "[37m";
+    const COLOR_FG_WHITE   = "[37m";
 
-    const COLOR_BG_WHITE   = "[40m";
+    const COLOR_BG_BLACK   = "[40m";
     const COLOR_BG_RED     = "[41m";
     const COLOR_BG_GREEN   = "[42m";
     const COLOR_BG_YELLOW  = "[43m";
     const COLOR_BG_BLUE    = "[44m";
     const COLOR_BG_MAGENTA = "[45m";
     const COLOR_BG_CYAN    = "[46m";
-    const COLOR_BG_WHITE_2 = "[47m";
+    const COLOR_BG_WHITE   = "[47m";
 
     const SET_CURSOR_KEY_TO_CURSOR = "[?1l";
+    const SET_CURSOR_KEY_TO_APPLICATION = "[?1h";
 
     const CLEAR_SCREEN_DOWN = "[0J";
     const CLEAR_SCREEN_UP = "[1J";
@@ -69,6 +75,10 @@ class Interpret
 
     const CURSOR_MOVE_PREG = "/\[([0-9]+);([0-9]+)H/";
     const COLOR_256_PREG = "/\[38;5;([0-9]+)m/";
+    const SCROLLING_REGION_PREG = "/\[([0-9]+);([0-9]+)r/";
+  
+    const PRIVATE_MODE_SET_PREG = "/\[?([0-9]+)h/";
+    const PRIVATE_MODE_RESET_PREG = "/\[?([0-9]+)l/";
 
     const IGNORE = ['[?1049h', '[?1049l'];
 
@@ -118,15 +128,38 @@ class Interpret
         }
         if (1 == preg_match(self::COLOR_256_PREG, $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
-            return new ColorCommand256((int) $matches[1], false, $output);
+            return new CursorMoveCommand((int) $matches[1], (int) $matches[2], $output);
         }
+        if (1 == preg_match(self::SCROLLING_REGION_PREG, $command, $matches)) {
+            $output = substr($command, strlen($matches[0]));
+            return new IgnoreCommand("", "Scrolling region top,bottom " . $matches[1] . "," . $matches[2]);
+        }
+        if (1 == preg_match(self::PRIVATE_MODE_SET_PREG, $command, $matches)) {
+            $output = substr($command, strlen($matches[0]));
+            return new IgnoreCommand("", "Private mode set " . $matches[1]);
+        }
+        if (1 == preg_match(self::PRIVATE_MODE_RESET_PREG, $command, $matches)) {
+            $output = substr($command, strlen($matches[0]));
+            return new IgnoreCommand("", "Private mode reset " . $matches[1]);
+        }
+      
+        switch ($command) {
+          case self::HIDE_CURSOR:
+            return new IgnoreCommand("", "Hide cursor");
+          case self::SHOW_CURSOR:
+            return new IgnoreCommand("", "Show cursor");
+          case self::RESET_COLORS:
+            return new IgnoreCommand("", "Reset colors");
+          case self::RESET:
+            return new IgnoreCommand("", "Reset");
+        }
+      
         $partFour = substr($command, 0, 4);
         $restFour = substr($command, 4);
 
         switch ($partFour) {
-            case self::COLOR_FG_WHITE:
-            case self::COLOR_FG_WHITE_2:
-                return new ColorCommand(ColorCommand::WHITE, false, $restFour);
+            case self::COLOR_FG_BLACK:
+                return new ColorCommand(ColorCommand::BLACK, false, $restFour);
             case self::COLOR_FG_RED:
                 return new ColorCommand(ColorCommand::RED, false, $restFour);
             case self::COLOR_FG_GREEN:
@@ -139,9 +172,11 @@ class Interpret
                 return new ColorCommand(ColorCommand::MAGENTA, false, $restFour);
             case self::COLOR_FG_CYAN:
                 return new ColorCommand(ColorCommand::CYAN, false, $restFour);
-            case self::COLOR_BG_WHITE:
-            case self::COLOR_BG_WHITE_2:
-                return new ColorCommand(ColorCommand::WHITE, true, $restFour);
+            case self::COLOR_FG_WHITE:
+                return new ColorCommand(ColorCommand::WHITE, false, $restFour);
+
+            case self::COLOR_BG_BLACK:
+                return new ColorCommand(ColorCommand::BLACK, true, $restFour);
             case self::COLOR_BG_RED:
                 return new ColorCommand(ColorCommand::RED, true, $restFour);
             case self::COLOR_BG_GREEN:
@@ -154,9 +189,13 @@ class Interpret
                 return new ColorCommand(ColorCommand::MAGENTA, true, $restFour);
             case self::COLOR_BG_CYAN:
                 return new ColorCommand(ColorCommand::CYAN, true, $restFour);
+            case self::COLOR_BG_WHITE:
+                return new ColorCommand(ColorCommand::WHITE, true, $restFour);
 
             case self::SET_CURSOR_KEY_TO_CURSOR:
                 return new IgnoreCommand($restFour, "DECCKM - Set cursor key to cursor");
+            case self::SET_CURSOR_KEY_TO_APPLICATION:
+                return new IgnoreCommand($restFour, "DECCKM - Set cursor key to application");
             default:
                 break;
         }
