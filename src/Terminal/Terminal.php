@@ -4,13 +4,14 @@ namespace Terminal;
 
 use Terminal\Commands\BackspaceCommand;
 use Terminal\Commands\CarriageReturnCommand;
-use Terminal\Commands\ClearLineFromRightCommand;
+use Terminal\Commands\ClearLineCommand;
 use Terminal\Commands\ClearScreenCommand;
 use Terminal\Commands\ClearScreenFromCursorCommand;
 use Terminal\Commands\ColorCommand;
 use Terminal\Commands\ColorCommand256;
 use Terminal\Commands\Command;
 use Terminal\Commands\CursorMoveCommand;
+use Terminal\Commands\EraseCharactersCommand;
 use Terminal\Commands\IgnoreCommand;
 use Terminal\Commands\MoveArrowCommand;
 use Terminal\Commands\MoveCursorHomeCommand;
@@ -30,7 +31,7 @@ class Terminal {
     private int $cursorRow = 0;
     private int $cursorCol = 0;
     private int $tabWidth = 8;
-    private string $tabString = "";
+    private string $tabString;
 
     public function __construct(?string $file = null)
     {
@@ -166,6 +167,9 @@ class Terminal {
                     case BackspaceCommand::class:
                         $this->cursorCol--;
                         break;
+                    case EraseCharactersCommand::class:
+                        $this->parseOutputToTerminal($command->output);
+                        break;
                     case NewlineCommand::class:
                         $this->cursorCol = self::COLUMN_BEGINNING;
                         $this->cursorRow++;
@@ -176,12 +180,12 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case CursorMoveCommand::class:
-                        $this->cursorRow = $command->row;
-                        $this->cursorCol = $command->col;
+                        $this->cursorRow = (null !== $command->row) ? $command->row : $this->cursorRow;
+                        $this->cursorCol = (null !== $command->col) ? $command->col : $this->cursorCol;
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
-                    case ClearLineFromRightCommand::class:
-                        $this->parseOutputToTerminal($command->getOutput(), true);
+                    case ClearLineCommand::class:
+                        $this->parseOutputToTerminal($command->getOutput(), $command->right, $command->left);
                         break;
                     case MoveArrowCommand::class:
                         if ($command->up) { $this->cursorRow--; }
@@ -262,12 +266,21 @@ class Terminal {
      * @param string $output
      * @param bool $clearFromRight
      */
-    private function parseOutputToTerminal(string $output, bool $clearLineFromRight = false)
+    private function parseOutputToTerminal(string $output, bool $clearLineFromRight = false, bool $clearLineFromLeft = false)
     {
+        if ($clearLineFromRight && $clearLineFromLeft) {
+            $this->console[$this->cursorRow] = new TerminalRow("");
+        }
         // if clearLineFromRight
-        if ($clearLineFromRight && isset($this->console[$this->cursorRow])) {
+        else if ($clearLineFromRight && isset($this->console[$this->cursorRow])) {
             $existingRow = $this->console[$this->cursorRow];
             $this->console[$this->cursorRow] = new TerminalRow($existingRow->getOutputTo($this->cursorCol));
+        }
+        // if clearLineFromLeft
+        else if ($clearLineFromLeft && isset($this->console[$this->cursorRow])) {
+            $existingRow = $this->console[$this->cursorRow];
+            $newOutput = str_pad("", $this->cursorCol, " ") . $existingRow->getOutputFrom($this->cursorCol);
+            $this->console[$this->cursorRow] = new TerminalRow($newOutput);
         }
         if (strlen($output) == 0) {
           return;
