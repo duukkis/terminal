@@ -88,7 +88,9 @@ class Interpret
     const ERASE_CHARACTERS_PREG = "/\[([0-9]+)X/";
     const GRAPHIC_ATTRIBUTION_PREG = "/([0-9]+)(;[0-9]+)?(;[0-9]+)?(;[0-9]+)?(;[0-9]+)?m/";
 
-    const PRIVATE_MODE_SET_PREG = "/\[?([0-9]+)h/";
+    const Z_IGNORE = "/\[([0-9;]+)z/";
+
+  const PRIVATE_MODE_SET_PREG = "/\[?([0-9]+)h/";
     const PRIVATE_MODE_RESET_PREG = "/\[?([0-9]+)l/";
 
     const CHARACTER_SETS = [
@@ -163,6 +165,9 @@ class Interpret
         if (1 == preg_match(self::COLOR_256_BACKGOUND_PREG, $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
             return new ColorCommand256((int) $matches[1], true, $output);
+        }
+        if (1 == preg_match(self::Z_IGNORE, $command, $matches)) {
+            return new OutputCommand(substr($command, strlen($matches[0])));
         }
         // this matches all m-commands
         if (1 == preg_match(self::GRAPHIC_ATTRIBUTION_PREG, $command, $matches)) {
