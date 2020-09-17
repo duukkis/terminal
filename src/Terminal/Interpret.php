@@ -60,6 +60,7 @@ class Interpret
     const CLEAR_SCREEN_UP = "[1J";
     const CLEAR_SCREEN = "[2J";
     const TURN_OFF_CHARACTER_ATTRIBUTES = "[0m";
+    const TURN_OFF_CHARACTER_ATTRIBUTES_2 = "[m";
     const TURN_ON_BOLD = "[1m";
     const TURN_ON_LOW_INTENSITY = "[2m";
     const TURN_ON_UNDERLINE = "[4m";
@@ -301,6 +302,8 @@ class Interpret
                 return new NewlineCommand($restTwo);
             case self::CARRIAGE_RETURN:
                 return new CarriageReturnCommand($restTwo);
+            case self::TURN_OFF_CHARACTER_ATTRIBUTES_2:
+                return new IgnoreCommand($restThree, "SGR0 - Turn off character attributes");
             default:
                 break;
         }
