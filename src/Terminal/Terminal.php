@@ -216,7 +216,7 @@ class Terminal {
                     case ColorCommand::class:
                     case ColorCommand256::class:
                         $style = $this->getStyle($command);
-                        $this->parseOutputToTerminal($command->getOutput());
+                        $this->parseOutputToTerminal($command->getOutput(), false, false, $style);
                         break;
                     case ClearScreenFromCursorCommand::class:
                         if ($command->down) {
@@ -231,11 +231,11 @@ class Terminal {
                         break;
                     case AddStyleCommand::class:
                         $style = $this->getStyle($command);
-                        $this->parseOutputToTerminal($command->getOutput());
+                        $this->parseOutputToTerminal($command->getOutput(), false, false, $style);
                         break;
                     case RemoveStyleCommand::class:
                         $style = new ClearStyle($this->cursorRow, $this->cursorCol);
-                        $this->parseOutputToTerminal($command->getOutput());
+                        $this->parseOutputToTerminal($command->getOutput(), false, false, $style);
                         break;
                     default:
                         print $commClass;
@@ -263,6 +263,7 @@ class Terminal {
     private function getStyle(Command $styleCommand): Style
     {
         if (get_class($styleCommand) === AddStyleCommand::class) {
+            /** @var $styleCommand AddStyleCommand */
             if ($styleCommand->getStyle() === AddStyleCommand::BOLD) {
                 return new BoldStyle($this->cursorRow, $this->cursorCol);
             } elseif ($styleCommand->getStyle() === AddStyleCommand::UNDERLINE) {
@@ -271,22 +272,25 @@ class Terminal {
                 return new ReverseStyle($this->cursorRow, $this->cursorCol);
             }
         } elseif (get_class($styleCommand) === ColorCommand::class) {
-            $color = $styleCommand->color;
+            /** @var $styleCommand ColorCommand */
+            $colors = $styleCommand->colorToRGB();
             return new ColorStyle(
                 $this->cursorRow,
                 $this->cursorCol,
-                hexdec(substr($color, 1, 2)),
-                hexdec(substr($color, 3, 2)),
-                hexdec(substr($color, 5, 2)),
+                $colors["r"],
+                $colors["g"],
+                $colors["b"],
                 $styleCommand->isBackground()
             );
         } elseif (get_class($styleCommand) === ColorCommand256::class) {
+            /** @var $styleCommand ColorCommand256 */
+            $colors = $styleCommand->colorToRGB();
             return new ColorStyle(
                 $this->cursorRow,
                 $this->cursorCol,
-                0,
-                0,
-                0,
+                $colors["r"],
+                $colors["g"],
+                $colors["b"],
                 $styleCommand->isBackground()
             );
         }
@@ -301,7 +305,8 @@ class Terminal {
     private function parseOutputToTerminal(
         string $output,
         bool $clearLineFromRight = false,
-        bool $clearLineFromLeft = false
+        bool $clearLineFromLeft = false,
+        ?Style $style = null
     )
     {
         $existingRow = $this->console->getRow($this->cursorRow);
@@ -311,12 +316,16 @@ class Terminal {
         }
         // if clearLineFromRight
         else if ($clearLineFromRight && $existingRow !== null) {
-            $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow($existingRow->getOutputTo($this->cursorCol)));
+            $newRow = new ConsoleRow($existingRow->getOutputTo($this->cursorCol));
+            $newRow->addStyles($existingRow->getStyles());
+            $existingRow = $this->console->setRow($this->cursorRow, $newRow);
         }
         // if clearLineFromLeft
         else if ($clearLineFromLeft && $existingRow !== null) {
             $newOutput = str_pad("", $this->cursorCol, " ") . $existingRow->getOutputFrom($this->cursorCol);
-            $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow($newOutput));
+            $newRow = new ConsoleRow($newOutput);
+            $newRow->addStyles($existingRow->getStyles());
+            $existingRow = $this->console->setRow($this->cursorRow, $newRow);
         }
         if (strlen($output) == 0) {
           return;
@@ -335,7 +344,12 @@ class Terminal {
             $output = str_pad($output, ($this->cursorCol + $outputLen), " ", STR_PAD_LEFT);
         }
         $this->cursorCol += $outputLen;
-        $this->console->setRow($this->cursorRow, new ConsoleRow($output));
+        $newRow = new ConsoleRow($output);
+        $newRow->addStyles($existingRow->getStyles());
+        if (null !== $style) {
+            $newRow->addStyle($this->cursorCol, $style);
+        }
+        $this->console->setRow($this->cursorRow, $newRow);
     }
 
     /**

@@ -7,7 +7,7 @@ class Console
 
     private array $console = [];
 
-    public function setRow(int $row, ?ConsoleRow $consoleRow): ConsoleRow
+    public function setRow(int $row, ConsoleRow $consoleRow): ConsoleRow
     {
         if ($consoleRow->isEmpty()) {
             unset($this->console[$row]);
