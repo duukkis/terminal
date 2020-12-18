@@ -2,6 +2,7 @@
 
 namespace Terminal;
 
+use Terminal\Commands\AddStyleCommand;
 use Terminal\Commands\BackspaceCommand;
 use Terminal\Commands\CarriageReturnCommand;
 use Terminal\Commands\ClearLineCommand;
@@ -17,6 +18,13 @@ use Terminal\Commands\MoveArrowCommand;
 use Terminal\Commands\MoveCursorHomeCommand;
 use Terminal\Commands\NewlineCommand;
 use Terminal\Commands\OutputCommand;
+use Terminal\Commands\RemoveStyleCommand;
+use Terminal\Style\BoldStyle;
+use Terminal\Style\ClearStyle;
+use Terminal\Style\ColorStyle;
+use Terminal\Style\ReverseStyle;
+use Terminal\Style\Style;
+use Terminal\Style\UnderlineStyle;
 
 class Terminal {
 
@@ -147,6 +155,9 @@ class Terminal {
 
     /**
      * loop screens and define maxes of screens
+     * @param bool $writeScreensIntoFiles
+     * @param bool $commandsToDebug
+     * @param int|null $stopAtScreen
      */
     public function loopScreens(
         bool $writeScreensIntoFiles = false,
@@ -180,8 +191,8 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case CursorMoveCommand::class:
-                        $this->cursorRow = (null !== $command->row) ? $command->row : $this->cursorRow;
-                        $this->cursorCol = (null !== $command->col) ? $command->col : $this->cursorCol;
+                        $this->cursorRow = $command->row ?? $this->cursorRow;
+                        $this->cursorCol = $command->col ?? $this->cursorCol;
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ClearLineCommand::class:
@@ -204,6 +215,7 @@ class Terminal {
                         break;
                     case ColorCommand::class:
                     case ColorCommand256::class:
+                        $style = $this->getStyle($command);
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ClearScreenFromCursorCommand::class:
@@ -215,6 +227,14 @@ class Terminal {
                         }
                         break;
                     case IgnoreCommand::class:
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case AddStyleCommand::class:
+                        $style = $this->getStyle($command);
+                        $this->parseOutputToTerminal($command->getOutput());
+                        break;
+                    case RemoveStyleCommand::class:
+                        $style = new ClearStyle($this->cursorRow, $this->cursorCol);
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     default:
@@ -232,6 +252,43 @@ class Terminal {
               // write consoles into temp files with commands
               $this->linesToFiles($screenNumber, $commands, $commandsToDebug);
             }
+        }
+    }
+
+    /**
+     * @param Command $styleCommand
+     * @return Style
+     * @
+     */
+    private function getStyle(Command $styleCommand): Style
+    {
+        if (get_class($styleCommand) === AddStyleCommand::class) {
+            if ($styleCommand->getStyle() === AddStyleCommand::BOLD) {
+                return new BoldStyle($this->cursorRow, $this->cursorCol);
+            } elseif ($styleCommand->getStyle() === AddStyleCommand::UNDERLINE) {
+                return new UnderlineStyle($this->cursorRow, $this->cursorCol);
+            } elseif ($styleCommand->getStyle() === AddStyleCommand::REVERSE) {
+                return new ReverseStyle($this->cursorRow, $this->cursorCol);
+            }
+        } elseif (get_class($styleCommand) === ColorCommand::class) {
+            $color = $styleCommand->color;
+            return new ColorStyle(
+                $this->cursorRow,
+                $this->cursorCol,
+                hexdec(substr($color, 1, 2)),
+                hexdec(substr($color, 3, 2)),
+                hexdec(substr($color, 5, 2)),
+                $styleCommand->isBackground()
+            );
+        } elseif (get_class($styleCommand) === ColorCommand256::class) {
+            return new ColorStyle(
+                $this->cursorRow,
+                $this->cursorCol,
+                0,
+                0,
+                0,
+                $styleCommand->isBackground()
+            );
         }
     }
 
@@ -265,8 +322,13 @@ class Terminal {
      * Parses output to a console
      * @param string $output
      * @param bool $clearFromRight
+     * @param bool $clearLineFromLeft
      */
-    private function parseOutputToTerminal(string $output, bool $clearLineFromRight = false, bool $clearLineFromLeft = false)
+    private function parseOutputToTerminal(
+        string $output,
+        bool $clearLineFromRight = false,
+        bool $clearLineFromLeft = false
+    )
     {
         if ($clearLineFromRight && $clearLineFromLeft) {
             $this->console[$this->cursorRow] = new TerminalRow("");
