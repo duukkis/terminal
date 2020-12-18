@@ -345,7 +345,9 @@ class Terminal {
         }
         $this->cursorCol += $outputLen;
         $newRow = new ConsoleRow($output);
-        $newRow->addStyles($existingRow->getStyles());
+        if (null !== $existingRow) {
+            $newRow->addStyles($existingRow->getStyles());
+        }
         if (null !== $style) {
             $newRow->addStyle($this->cursorCol, $style);
         }

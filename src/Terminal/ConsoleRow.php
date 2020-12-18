@@ -7,7 +7,7 @@ use Terminal\Style\Style;
 class ConsoleRow
 {
     public string $output;
-    private array $styles;
+    private array $styles = [];
 
     public function __construct(string $output)
     {

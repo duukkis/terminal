@@ -4,9 +4,9 @@ namespace Terminal\Style;
 
 class ColorStyle extends Style
 {
-    private int $red;
-    private int $green;
-    private int $blue;
+    public int $red;
+    public int $green;
+    public int $blue;
     private bool $background;
 
     public function __construct(int $row, int $col, int $red, int $green, int $blue, bool $background)

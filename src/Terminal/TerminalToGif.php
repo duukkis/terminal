@@ -2,6 +2,8 @@
 
 namespace Terminal;
 
+use Terminal\Style\ColorStyle;
+
 class TerminalToGif
 {
 
@@ -99,6 +101,24 @@ class TerminalToGif
         imagedestroy($im);
     }
 
+    /**
+     * @param int $screenNumber
+     * @param string $filename - filename to write the gif
+     */
+    public function screenToGifWithStyles(int $screenNumber, string $filename)
+    {
+        $screens = $this->terminal->getScreens();
+        /** @var Screen $screen */
+        $screen = $screens[$screenNumber];
+        $this->console = $screen->getConsole();
+        // init the image width and height
+        $this->imageHeight = $this->rows * $this->fontHeight + (2 * $this->margin);
+        $this->imageWidth = $this->cols * $this->fontWidth + (2 * $this->margin);
+        $im = $this->createImageWithStyles();
+        imagegif($im, $filename);
+        imagedestroy($im);
+    }
+
     private function setBackgroundColor($im): ?int
     {
         return imagecolorallocate($im, $this->bgColor["r"], $this->bgColor["g"], $this->bgColor["b"]);
@@ -107,6 +127,11 @@ class TerminalToGif
     private function getForegroundColor($im): ?int
     {
         return imagecolorallocate($im, $this->fgColor["r"], $this->fgColor["g"], $this->fgColor["b"]);
+    }
+
+    private function getColor($im, $r, $g, $b): ?int
+    {
+        return imagecolorallocate($im, $r, $g, $b);
     }
 
     public function createImage()
@@ -121,6 +146,43 @@ class TerminalToGif
                 $y = $i * $this->fontHeight + $this->margin;
                 $text = $row->output;
                 imagestring($im, $this->font, $x, $y, $text, $textcolor);
+            }
+        }
+        return $im;
+    }
+
+    public function createImageWithStyles()
+    {
+        $im = imagecreate($this->imageWidth, $this->imageHeight);
+        $this->setBackgroundColor($im);
+        $fgcolor = $this->getForegroundColor($im);
+        for ($i = 1; $i <= $this->rows; $i++) {
+            $row = $this->console->getRow($i);
+            if (null !== $row) {
+                $styles = $row->getStyles();
+                $y = $i * $this->fontHeight + $this->margin;
+                if (!empty($styles)) {
+                    // print this character by character
+                    for ($j = 0;$j < strlen($row->output);$j++) {
+                        $chr = substr($row->output, $j, 1);
+                        if (!empty($chr)) {
+                            $x = $this->margin + $j * $this->fontWidth;
+                            $textcolor = $fgcolor;
+                            if (isset($styles[$j])) {
+                                $s = $styles[$j];
+                                if (get_class($s) == ColorStyle::class) {
+                                    /** @var $s ColorStyle */
+                                    $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
+                                }
+                            }
+                            imagestring($im, $this->font, $x, $y, $chr, $textcolor);
+                        }
+                    }
+                } else {
+                    $x = $this->margin;
+                    $text = $row->output;
+                    imagestring($im, $this->font, $x, $y, $text, $fgcolor);
+                }
             }
         }
         return $im;
