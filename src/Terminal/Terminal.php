@@ -34,7 +34,7 @@ class Terminal {
     // parsing related variables
     const TAB = "\t";
     // console array with TerminalRows / row index
-    private array $console = [];
+    private Console $console;
     // current cursor position
     private int $cursorRow = 0;
     private int $cursorCol = 0;
@@ -106,7 +106,7 @@ class Terminal {
 
     private function clearConsole(): void
     {
-        $this->console = [];
+        $this->console = new Console();
     }
 
     /**
@@ -121,9 +121,9 @@ class Terminal {
     /**
      * goto screen and stop there, returns the console
      * @param int $screenNumber
-     * @return array
+     * @return Console
      */
-    public function gotoScreen(int $screenNumber): array
+    public function gotoScreen(int $screenNumber): Console
     {
         $this->loopScreens(false, false, $screenNumber);
         return $this->getConsole();
@@ -131,9 +131,9 @@ class Terminal {
 
     /**
      * get console
-     * @return array
+     * @return Console
      */
-    public function getConsole(): array
+    public function getConsole(): Console
     {
         return $this->console;
     }
@@ -220,10 +220,10 @@ class Terminal {
                         break;
                     case ClearScreenFromCursorCommand::class:
                         if ($command->down) {
-                            $this->clearRowsDownFrom($this->cursorRow);
+                            $this->console->clearRowsDownFrom($this->cursorRow);
                         }
                         if ($command->up) {
-                            $this->clearRowsUpFrom($this->cursorRow);
+                            $this->console->clearRowsUpFrom($this->cursorRow);
                         }
                         break;
                     case IgnoreCommand::class:
@@ -293,32 +293,6 @@ class Terminal {
     }
 
     /**
-     * removes rows from here to below
-     * @param int $row
-     */
-    private function clearRowsDownFrom(int $row)
-    {
-        foreach ($this->console as $rowindex => $dada) {
-            if ($rowindex >= $row) {
-                unset($this->console[$rowindex]);
-            }
-        }
-    }
-
-    /**
-     * Removes rows from here to up
-     * @param int $row
-     */
-    private function clearRowsUpFrom(int $row)
-    {
-        foreach ($this->console as $rowindex => $dada) {
-            if ($rowindex <= $row) {
-                unset($this->console[$rowindex]);
-            }
-        }
-    }
-
-    /**
      * Parses output to a console
      * @param string $output
      * @param bool $clearFromRight
@@ -330,19 +304,19 @@ class Terminal {
         bool $clearLineFromLeft = false
     )
     {
+        $existingRow = $this->console->getRow($this->cursorRow);
+
         if ($clearLineFromRight && $clearLineFromLeft) {
-            $this->console[$this->cursorRow] = new TerminalRow("");
+            $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow(""));
         }
         // if clearLineFromRight
-        else if ($clearLineFromRight && isset($this->console[$this->cursorRow])) {
-            $existingRow = $this->console[$this->cursorRow];
-            $this->console[$this->cursorRow] = new TerminalRow($existingRow->getOutputTo($this->cursorCol));
+        else if ($clearLineFromRight && $existingRow !== null) {
+            $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow($existingRow->getOutputTo($this->cursorCol)));
         }
         // if clearLineFromLeft
-        else if ($clearLineFromLeft && isset($this->console[$this->cursorRow])) {
-            $existingRow = $this->console[$this->cursorRow];
+        else if ($clearLineFromLeft && $existingRow !== null) {
             $newOutput = str_pad("", $this->cursorCol, " ") . $existingRow->getOutputFrom($this->cursorCol);
-            $this->console[$this->cursorRow] = new TerminalRow($newOutput);
+            $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow($newOutput));
         }
         if (strlen($output) == 0) {
           return;
@@ -353,8 +327,7 @@ class Terminal {
         $outputLen = strlen($output);
         // if there is existing items in row, get the contents
         // and prepend and append it to new output based on cursorCol
-        if (isset($this->console[$this->cursorRow])) {
-            $existingRow = $this->console[$this->cursorRow];
+        if ($existingRow !== null) {
             $beginningOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
             $endOutputFromExisting = $existingRow->getOutputFrom($this->cursorCol + $outputLen);
             $output = str_pad($beginningOutputFromExisting, $this->cursorCol, " ", STR_PAD_RIGHT).$output.$endOutputFromExisting;
@@ -362,7 +335,7 @@ class Terminal {
             $output = str_pad($output, ($this->cursorCol + $outputLen), " ", STR_PAD_LEFT);
         }
         $this->cursorCol += $outputLen;
-        $this->console[$this->cursorRow] = new TerminalRow($output);
+        $this->console->setRow($this->cursorRow, new ConsoleRow($output));
     }
 
     /**
@@ -371,13 +344,10 @@ class Terminal {
      * @param array $commands
      */
     private function linesToFiles(int $index, array $commands, bool $commandsToDebug){
-      $lastLine = 0;
-      if (!empty($this->console)) {
-        $lastLine = max(array_keys($this->console));
-      }
+      $lastLine = $this->console->getMaxIndex();
       $data = '';
       for ($i = 0;$i <= $lastLine;$i++) {
-        if (isset($this->console[$i])) {
+        if ($this->console->getRow($i) !== null) {
           $data .= $this->console[$i]->output;
         }
         $data .= PHP_EOL;

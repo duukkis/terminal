@@ -2,7 +2,7 @@
 
 namespace Terminal;
 
-class TerminalRow
+class ConsoleRow
 {
     public string $output;
 
@@ -19,5 +19,10 @@ class TerminalRow
     public function getOutputFrom(int $col)
     {
         return substr($this->output, $col);
+    }
+
+    public function isEmpty(): bool
+    {
+        return empty(trim($this->output));
     }
 }

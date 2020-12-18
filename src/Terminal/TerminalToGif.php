@@ -5,7 +5,7 @@ namespace Terminal;
 class TerminalToGif
 {
 
-    private $console = [];
+    private Console $console;
 
     private int $font = 5;
     private int $fontWidth = 9;
@@ -88,12 +88,13 @@ class TerminalToGif
     public function screenToGif(int $screenNumber, string $filename)
     {
         $screens = $this->terminal->getScreens();
+        /** @var Screen $screen */
         $screen = $screens[$screenNumber];
         $this->console = $screen->getConsole();
         // init the image width and height
         $this->imageHeight = $this->rows * $this->fontHeight + (2 * $this->margin);
         $this->imageWidth = $this->cols * $this->fontWidth + (2 * $this->margin);
-        $im = $this->createImage($filename);
+        $im = $this->createImage();
         imagegif($im, $filename);
         imagedestroy($im);
     }
@@ -108,16 +109,17 @@ class TerminalToGif
         return imagecolorallocate($im, $this->fgColor["r"], $this->fgColor["g"], $this->fgColor["b"]);
     }
 
-    public function createImage(string $filename)
+    public function createImage()
     {
         $im = imagecreate($this->imageWidth, $this->imageHeight);
         $this->setBackgroundColor($im);
         $textcolor = $this->getForegroundColor($im);
         for ($i = 1; $i <= $this->rows; $i++) {
-            if (isset($this->console[$i])) {
+            $row = $this->console->getRow($i);
+            if (null !== $row) {
                 $x = $this->margin;
                 $y = $i * $this->fontHeight + $this->margin;
-                $text = $this->console[$i]->output;
+                $text = $row->output;
                 imagestring($im, $this->font, $x, $y, $text, $textcolor);
             }
         }
