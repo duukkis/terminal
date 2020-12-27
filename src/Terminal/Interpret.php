@@ -171,22 +171,6 @@ class Interpret
         if (1 == preg_match(self::Z_IGNORE, $command, $matches)) {
             return new OutputCommand(substr($command, strlen($matches[0])));
         }
-        // this matches all m-commands
-        if (1 == preg_match(self::GRAPHIC_ATTRIBUTION_PREG, $command, $matches)) {
-            // todo - 0 attribs off, 1 - bold, 4 - underscore, 5 - blink, 7 - negative
-            $output = substr($command, strlen($matches[0])+1);
-            switch ($matches[0]) {
-                case 0:
-                    return new RemoveStyleCommand($output);
-                case 1:
-                    return new AddStyleCommand($output, AddStyleCommand::BOLD);
-                case 4:
-                    return new AddStyleCommand($output, AddStyleCommand::UNDERLINE);
-                case 7:
-                    return new AddStyleCommand($output, AddStyleCommand::REVERSE);
-            }
-            return new IgnoreCommand($output, "Decorate " . $matches[0]);
-        }
         if (1 == preg_match(self::SCROLLING_REGION_PREG, $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
             return new IgnoreCommand("", "Scrolling region top,bottom " . $matches[1] . "," . $matches[2]);
@@ -258,6 +242,23 @@ class Interpret
                 return new IgnoreCommand($restFour, "DECCKM - Set cursor key to application");
             default:
                 break;
+        }
+
+        // this matches all m-commands
+        if (1 == preg_match(self::GRAPHIC_ATTRIBUTION_PREG, $command, $matches)) {
+            // todo - 0 attribs off, 1 - bold, 4 - underscore, 5 - blink, 7 - negative
+            $output = substr($command, strlen($matches[0])+1);
+            switch ($matches[0]) {
+                case 0:
+                    return new RemoveStyleCommand($output);
+                case 1:
+                    return new AddStyleCommand($output, AddStyleCommand::BOLD);
+                case 4:
+                    return new AddStyleCommand($output, AddStyleCommand::UNDERLINE);
+                case 7:
+                    return new AddStyleCommand($output, AddStyleCommand::REVERSE);
+            }
+            return new IgnoreCommand($output, "Decorate " . $matches[0]);
         }
 
         $partThree = substr($command, 0, 3);

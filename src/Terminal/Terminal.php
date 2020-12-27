@@ -244,7 +244,7 @@ class Terminal {
                 }
             }
             // set the print out into Screen so it's reusable
-            $this->screens[$screenNumber]->setConsole($this->console);
+            $this->screens[$screenNumber]->setConsole(clone $this->console);
             if (null !== $stopAtScreen && $screenNumber == $stopAtScreen) {
                 break;
             }
@@ -310,6 +310,7 @@ class Terminal {
     )
     {
         $existingRow = $this->console->getRow($this->cursorRow);
+        $newRow = new ConsoleRow("");
 
         if ($clearLineFromRight && $clearLineFromLeft) {
             $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow(""));
@@ -317,18 +318,25 @@ class Terminal {
         // if clearLineFromRight
         else if ($clearLineFromRight && $existingRow !== null) {
             $newRow = new ConsoleRow($existingRow->getOutputTo($this->cursorCol));
-            $newRow->addStyles($existingRow->getStyles());
+            $newRow->addStyles($existingRow->getStyles($this->cursorCol, ConsoleRow::MIN));
             $existingRow = $this->console->setRow($this->cursorRow, $newRow);
         }
         // if clearLineFromLeft
         else if ($clearLineFromLeft && $existingRow !== null) {
             $newOutput = str_pad("", $this->cursorCol, " ") . $existingRow->getOutputFrom($this->cursorCol);
             $newRow = new ConsoleRow($newOutput);
-            $newRow->addStyles($existingRow->getStyles());
+            $newRow->addStyles($existingRow->getStyles(ConsoleRow::MAX, $this->cursorCol));
             $existingRow = $this->console->setRow($this->cursorRow, $newRow);
         }
         if (strlen($output) == 0) {
-          return;
+            if (null !== $style) {
+                if ($existingRow == null) {
+                    $existingRow = new ConsoleRow("");
+                }
+                $existingRow->addStyle($this->cursorCol, $style);
+                $this->console->setRow($this->cursorRow, $existingRow);
+            }
+            return;
         }
         // replace tabs with spaces
         $output = str_replace(self::TAB, $this->tabString, $output);
@@ -343,14 +351,16 @@ class Terminal {
         } else {
             $output = str_pad($output, ($this->cursorCol + $outputLen), " ", STR_PAD_LEFT);
         }
-        $this->cursorCol += $outputLen;
-        $newRow = new ConsoleRow($output);
+        $newRow->output = $output;
+
         if (null !== $existingRow) {
-            $newRow->addStyles($existingRow->getStyles());
+            $newRow->addStyles($existingRow->getStyles($this->cursorCol));
         }
+
         if (null !== $style) {
             $newRow->addStyle($this->cursorCol, $style);
         }
+        $this->cursorCol += $outputLen;
         $this->console->setRow($this->cursorRow, $newRow);
     }
 
@@ -362,14 +372,22 @@ class Terminal {
     private function linesToFiles(int $index, array $commands, bool $commandsToDebug){
       $lastLine = $this->console->getMaxIndex();
       $data = '';
+      $styles = '';
       for ($i = 0;$i <= $lastLine;$i++) {
-        if ($this->console->getRow($i) !== null) {
-          $data .= $this->console[$i]->output;
+        $row = $this->console->getRow($i);
+        if ($row !== null) {
+          /** @var ConsoleRow $row */
+          $data .= $row->output;
+          $s = $row->getStyles();
+          if (!empty($s)) {
+              $styles .= $i . PHP_EOL . print_r($s, true);
+          }
         }
         $data .= PHP_EOL;
       }
       if ($commandsToDebug) {
           $data .= print_r($commands, true);
+          $data .= $styles;
       }
       try{
           file_put_contents(__DIR__."/../../temp/screen_".$index.".txt", $data);

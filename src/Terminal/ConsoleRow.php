@@ -2,12 +2,16 @@
 
 namespace Terminal;
 
+use Terminal\Style\ClearStyle;
 use Terminal\Style\Style;
 
 class ConsoleRow
 {
     public string $output;
     private array $styles = [];
+
+    const MIN = 0;
+    const MAX = 10000;
 
     public function __construct(string $output)
     {
@@ -16,15 +20,11 @@ class ConsoleRow
 
     public function getOutputTo(int $col): string
     {
-        $clearTheseFromStyles = array_fill(0, $col, null);
-        $this->styles = array_diff_key($this->styles, $clearTheseFromStyles);
         return substr($this->output, 0, $col);
     }
 
     public function getOutputFrom(int $col): string
     {
-        $clearTheseFromStyles = array_fill($col, strlen($this->output), null);
-        $this->styles = array_diff_key($this->styles, $clearTheseFromStyles);
         return substr($this->output, $col);
     }
 
@@ -33,9 +33,11 @@ class ConsoleRow
         return empty(trim($this->output));
     }
 
-    public function getStyles(): array
+    public function getStyles(?int $before = self::MAX, ?int $after = self::MIN): array
     {
-        return $this->styles;
+        return array_filter($this->styles, function($k) use ($before, $after) {
+            return ($k >= $after && $k <= $before);
+        }, ARRAY_FILTER_USE_KEY);
     }
 
     public function addStyles(array $styles)
@@ -45,6 +47,6 @@ class ConsoleRow
 
     public function addStyle(int $col, Style $style)
     {
-        $this->styles[$col] = $style;
+        $this->styles[$col][] = $style;
     }
 }

@@ -5,31 +5,31 @@ namespace Terminal;
 class Console
 {
 
-    private array $console = [];
+    private array $rows = [];
 
     public function setRow(int $row, ConsoleRow $consoleRow): ConsoleRow
     {
         if ($consoleRow->isEmpty()) {
-            unset($this->console[$row]);
+            unset($this->rows[$row]);
         } else {
-            $this->console[$row] = $consoleRow;
+            $this->rows[$row] = $consoleRow;
         }
         return $consoleRow;
     }
 
     public function isRowSet(int $row): bool
     {
-        return (isset($this->console[$row])) ? true : false;
+        return (isset($this->rows[$row])) ? true : false;
     }
 
     public function getRow(int $row): ?ConsoleRow
     {
-        return (isset($this->console[$row])) ? $this->console[$row] : null;
+        return (isset($this->rows[$row])) ? $this->rows[$row] : null;
     }
 
     public function getMaxIndex(): int
     {
-        return (!empty($this->console)) ? max(array_keys($this->console)) : 0;
+        return (!empty($this->rows)) ? max(array_keys($this->rows)) : 0;
     }
 
 
@@ -39,9 +39,9 @@ class Console
      */
     public function clearRowsDownFrom(int $row): void
     {
-        foreach ($this->console as $rowindex => $dada) {
+        foreach ($this->rows as $rowindex => $dada) {
             if ($rowindex >= $row) {
-                unset($this->console[$rowindex]);
+                unset($this->rows[$rowindex]);
             }
         }
     }
@@ -52,9 +52,9 @@ class Console
      */
     public function clearRowsUpFrom(int $row): void
     {
-        foreach ($this->console as $rowindex => $dada) {
+        foreach ($this->rows as $rowindex => $dada) {
             if ($rowindex <= $row) {
-                unset($this->console[$rowindex]);
+                unset($this->rows[$rowindex]);
             }
         }
     }
