@@ -166,6 +166,7 @@ class Terminal {
     ) {
         /** @var Screen $screen */
         foreach ($this->screens as $screenNumber => $screen) {
+            $this->screenNumber = $screenNumber;
             $commands = $screen->getCommands();
             /** @var Command $command */
             foreach ($commands as $command) {
@@ -196,7 +197,8 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ClearLineCommand::class:
-                        $this->parseOutputToTerminal($command->getOutput(), $command->right, $command->left);
+                        $this->clearLine($command->right, $command->left);
+                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case MoveArrowCommand::class:
                         if ($command->up) { $this->cursorRow--; }
@@ -215,8 +217,8 @@ class Terminal {
                         break;
                     case ColorCommand::class:
                     case ColorCommand256::class:
-                        $style = $this->getStyle($command);
-                        $this->parseOutputToTerminal($command->getOutput(), false, false, $style);
+                        $this->addStyleToConsoleRow($this->getStyle($command));
+                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case ClearScreenFromCursorCommand::class:
                         if ($command->down) {
@@ -230,17 +232,17 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case AddStyleCommand::class:
-                        $style = $this->getStyle($command);
-                        $this->parseOutputToTerminal($command->getOutput(), false, false, $style);
+                        $this->addStyleToConsoleRow($this->getStyle($command));
+                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case RemoveStyleCommand::class:
-                        $style = new ClearStyle($this->cursorRow, $this->cursorCol);
-                        $this->parseOutputToTerminal($command->getOutput(), false, false, $style);
+                        $this->addStyleToConsoleRow(new ClearStyle($this->cursorRow, $this->cursorCol));
+                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     default:
                         print $commClass;
                         print_r($command);
-                        die("Not implemented yet");
+                        die("Not implemented");
                 }
             }
             // set the print out into Screen so it's reusable
@@ -258,7 +260,6 @@ class Terminal {
     /**
      * @param Command $styleCommand
      * @return Style
-     * @
      */
     private function getStyle(Command $styleCommand): Style
     {
@@ -296,70 +297,66 @@ class Terminal {
         }
     }
 
-    /**
-     * Parses output to a console
-     * @param string $output
-     * @param bool $clearFromRight
-     * @param bool $clearLineFromLeft
-     */
-    private function parseOutputToTerminal(
-        string $output,
-        bool $clearLineFromRight = false,
-        bool $clearLineFromLeft = false,
-        ?Style $style = null
-    )
-    {
+    private function clearLine(bool $clearLineFromRight = false, bool $clearLineFromLeft = false) {
         $existingRow = $this->console->getRow($this->cursorRow);
-        $newRow = new ConsoleRow("");
 
         if ($clearLineFromRight && $clearLineFromLeft) {
-            $existingRow = $this->console->setRow($this->cursorRow, new ConsoleRow(""));
+            $this->console->setRow($this->cursorRow, new ConsoleRow(""));
         }
         // if clearLineFromRight
         else if ($clearLineFromRight && $existingRow !== null) {
             $newRow = new ConsoleRow($existingRow->getOutputTo($this->cursorCol));
             $newRow->addStyles($existingRow->getStyles($this->cursorCol, ConsoleRow::MIN));
-            $existingRow = $this->console->setRow($this->cursorRow, $newRow);
+            $this->console->setRow($this->cursorRow, $newRow);
         }
         // if clearLineFromLeft
         else if ($clearLineFromLeft && $existingRow !== null) {
             $newOutput = str_pad("", $this->cursorCol, " ") . $existingRow->getOutputFrom($this->cursorCol);
             $newRow = new ConsoleRow($newOutput);
             $newRow->addStyles($existingRow->getStyles(ConsoleRow::MAX, $this->cursorCol));
-            $existingRow = $this->console->setRow($this->cursorRow, $newRow);
+            $this->console->setRow($this->cursorRow, $newRow);
         }
+    }
+
+    private function addStyleToConsoleRow(Style $style)
+    {
+        /** @var ConsoleRow $consoleRow */
+        $consoleRow = $this->console->getRow($this->cursorRow);
+        if ($consoleRow == null) {
+            $consoleRow = new ConsoleRow("");
+        }
+        $consoleRow->addStyle($this->cursorCol, $style);
+        $this->console->setRow($this->cursorRow, $consoleRow);
+    }
+
+    /**
+     * Parses output to a console
+     * @param string $output
+     */
+    private function parseOutputToTerminal(string $output)
+    {
         if (strlen($output) == 0) {
-            if (null !== $style) {
-                if ($existingRow == null) {
-                    $existingRow = new ConsoleRow("");
-                }
-                $existingRow->addStyle($this->cursorCol, $style);
-                $this->console->setRow($this->cursorRow, $existingRow);
-            }
             return;
         }
+        $consoleRow = $this->console->getRow($this->cursorRow);
+        $styles = [];
         // replace tabs with spaces
         $output = str_replace(self::TAB, $this->tabString, $output);
 
         $outputLen = strlen($output);
         // if there is existing items in row, get the contents
         // and prepend and append it to new output based on cursorCol
-        if ($existingRow !== null) {
-            $beginningOutputFromExisting = $existingRow->getOutputTo($this->cursorCol);
-            $endOutputFromExisting = $existingRow->getOutputFrom($this->cursorCol + $outputLen);
+        if ($consoleRow !== null) {
+            $styles = $consoleRow->getStyles($this->cursorCol);
+            $beginningOutputFromExisting = $consoleRow->getOutputTo($this->cursorCol);
+            $endOutputFromExisting = $consoleRow->getOutputFrom($this->cursorCol + $outputLen);
             $output = str_pad($beginningOutputFromExisting, $this->cursorCol, " ", STR_PAD_RIGHT).$output.$endOutputFromExisting;
         } else {
             $output = str_pad($output, ($this->cursorCol + $outputLen), " ", STR_PAD_LEFT);
         }
-        $newRow->output = $output;
+        $newRow = new ConsoleRow($output);
+        $newRow->addStyles($styles);
 
-        if (null !== $existingRow) {
-            $newRow->addStyles($existingRow->getStyles($this->cursorCol));
-        }
-
-        if (null !== $style) {
-            $newRow->addStyle($this->cursorCol, $style);
-        }
         $this->cursorCol += $outputLen;
         $this->console->setRow($this->cursorRow, $newRow);
     }
@@ -380,7 +377,8 @@ class Terminal {
           $data .= $row->output;
           $s = $row->getStyles();
           if (!empty($s)) {
-              $styles .= $i . PHP_EOL . print_r($s, true);
+              $styles .= "ROW ".$i . PHP_EOL . print_r($s, true);
+              $styles .= PHP_EOL . print_r($row->getStyleLengths(), true);
           }
         }
         $data .= PHP_EOL;

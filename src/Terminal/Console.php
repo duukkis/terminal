@@ -17,11 +17,6 @@ class Console
         return $consoleRow;
     }
 
-    public function isRowSet(int $row): bool
-    {
-        return (isset($this->rows[$row])) ? true : false;
-    }
-
     public function getRow(int $row): ?ConsoleRow
     {
         return (isset($this->rows[$row])) ? $this->rows[$row] : null;

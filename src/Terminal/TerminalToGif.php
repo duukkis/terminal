@@ -6,6 +6,7 @@ use Terminal\Style\BoldStyle;
 use Terminal\Style\ClearStyle;
 use Terminal\Style\ColorStyle;
 use Terminal\Style\ReverseStyle;
+use Terminal\Style\Style;
 use Terminal\Style\UnderlineStyle;
 
 class TerminalToGif
@@ -164,43 +165,44 @@ class TerminalToGif
         for ($i = 1; $i <= $this->rows; $i++) {
             $row = $this->console->getRow($i);
             if (null !== $row) {
-                $styles = $row->getStyles();
+                $text = $row->output;
+                $x = $this->margin;
                 $y = $i * $this->fontHeight + $this->margin;
-                // print this character by character
-                for ($j = 0;$j < strlen($row->output);$j++) {
-                    $chr = substr($row->output, $j, 1);
-                    if (!empty($chr)) {
-                        $x = $this->margin + $j * $this->fontWidth;
-                        if (isset($styles[$j]) && !empty($styles[$j])) {
-                            foreach ($styles[$j] as $s) {
-                                switch (get_class($s)) {
-                                    case ColorStyle::class:
-                                        /** @var $s ColorStyle */
-                                        if (
-                                            $s->red != $this->bgColor["r"]
-                                            && $s->green != $this->bgColor["g"]
-                                            && $s->blue != $this->bgColor["b"]
-                                        ) {
-                                            $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
-                                        }
-                                        break;
-                                    case BoldStyle::class:
-                                        /** @var $s BoldStyle */
-                                        $textcolor = $this->getColor($im, 255, 0, 0);
-                                        break;
-                                    case UnderlineStyle::class:
-                                        /** @var $s UnderlineStyle */
-                                        $textcolor = $this->getColor($im, 0, 255, 0);
-                                        break;
-                                    case ReverseStyle::class:
-                                        /** @var $s ReverseStyle */
-                                        $textcolor = $this->getColor($im, 0, 0, 255);
-                                        break;
-                                    case ClearStyle::class:
-                                        $textcolor = $fgcolor;
-                                        break;
+                imagestring($im, $this->font, $x, $y, $text, $textcolor);
+                $styles = $row->getStyles();
+                $styleLengths = $row->getStyleLengths();
+                // print styles character by character
+                foreach ($styles as $col => $colstyles) {
+                    /** @var Style $s */
+                    foreach ($colstyles as $s){
+                        $x = $this->margin + $col * $this->fontWidth;
+                        $chr = substr($row->output, $col, $styleLengths[$col]);
+                        switch (get_class($s)) {
+                            case ColorStyle::class:
+                                /** @var $s ColorStyle */
+                                if (
+                                    $s->red != $this->bgColor["r"]
+                                    && $s->green != $this->bgColor["g"]
+                                    && $s->blue != $this->bgColor["b"]
+                                ) {
+                                    $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
                                 }
-                            };
+                                break;
+                            case BoldStyle::class:
+                                /** @var $s BoldStyle */
+                                $textcolor = $this->getColor($im, 255, 0, 0);
+                                break;
+                            case UnderlineStyle::class:
+                                /** @var $s UnderlineStyle */
+                                $textcolor = $this->getColor($im, 0, 255, 0);
+                                break;
+                            case ReverseStyle::class:
+                                /** @var $s ReverseStyle */
+                                $textcolor = $this->getColor($im, 0, 0, 255);
+                                break;
+                            case ClearStyle::class:
+                                $textcolor = $fgcolor;
+                                break;
                         }
                         imagestring($im, $this->font, $x, $y, $chr, $textcolor);
                     }
