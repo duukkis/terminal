@@ -323,6 +323,7 @@ class AnimatedGif {
                         $this->numbersToTwoBit($frameDuration) .
                         chr($j) .
                         self::ZERO_BYTE;
+                    break;
                 }
             }
         }
