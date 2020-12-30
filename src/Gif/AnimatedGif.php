@@ -105,7 +105,6 @@ class AnimatedGif {
     // some helper variables for comparisons
     private int $numberOfColorsInFirstFrame = 0;
     private string $firstFrameColorRgbTable = "";
-    private int $firstFrameEndian;
 
     // variable to hold the filebuffer open
     private $fileBuffer = null;
@@ -178,7 +177,6 @@ class AnimatedGif {
     {
         $this->numberOfColorsInFirstFrame = $this->getNumberOfColors($firstFrame);
         $this->firstFrameColorRgbTable = substr($firstFrame, self::COLORTABLE_POSITION, $this->getGCTLength($firstFrame));
-        $this->firstFrameEndian = (ord ($firstFrame[self::GCT_POSITION]) & 0x07);
     }
 
     private function loadGif(string $fileName): ?string
@@ -265,9 +263,14 @@ class AnimatedGif {
         return (2 << (ord($frame[self::GCT_POSITION]) & 0x07));
     }
 
-    private function numbersToTwoBit($numb): string
+    private function numbersToTwoBit(int $numb): string
     {
         return ( chr($numb & 0xFF) . chr(($numb >> 8) & 0xFF));
+    }
+
+    private function getFrameEndian(string $frame): string
+    {
+        return (ord ($frame[self::GCT_POSITION]) & 0x07);
     }
 
     /*
@@ -343,7 +346,7 @@ class AnimatedGif {
             $byte = ord($frameImageDescriptor[9]);
             $byte |= 0x80;
             $byte &= 0xF8;
-            $byte |= $this->firstFrameEndian;
+            $byte |= $this->getFrameEndian($frame);
             $frameImageDescriptor[9] = chr($byte);
         } else {
             // do not append frame rgb since the frame has the same as first frame / global

@@ -12,6 +12,8 @@ use Terminal\Style\UnderlineStyle;
 class TerminalToGif
 {
 
+    const NORMAL_FONT = 5;
+    const BOLD_FONT = 6;
     private Console $console;
 
     private int $font = 5;
@@ -168,29 +170,27 @@ class TerminalToGif
                 $text = $row->output;
                 $x = $this->margin;
                 $y = $i * $this->fontHeight + $this->margin;
+                // first write the normal
                 imagestring($im, $this->font, $x, $y, $text, $textcolor);
+                // then write the colors on top of normals
                 $styles = $row->getStyles();
                 $styleLengths = $row->getStyleLengths();
-                // print styles character by character
+                // print styles from col to col
                 foreach ($styles as $col => $colstyles) {
                     /** @var Style $s */
                     foreach ($colstyles as $s){
                         $x = $this->margin + $col * $this->fontWidth;
                         $chr = substr($row->output, $col, $styleLengths[$col]);
+                        $this->font = self::NORMAL_FONT;
                         switch (get_class($s)) {
                             case ColorStyle::class:
                                 /** @var $s ColorStyle */
-                                if (
-                                    $s->red != $this->bgColor["r"]
-                                    && $s->green != $this->bgColor["g"]
-                                    && $s->blue != $this->bgColor["b"]
-                                ) {
-                                    $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
-                                }
+                                $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
                                 break;
                             case BoldStyle::class:
                                 /** @var $s BoldStyle */
-                                $textcolor = $this->getColor($im, 255, 0, 0);
+                                $textcolor = $fgcolor;
+                                $this->font = self::BOLD_FONT;
                                 break;
                             case UnderlineStyle::class:
                                 /** @var $s UnderlineStyle */
@@ -204,7 +204,9 @@ class TerminalToGif
                                 $textcolor = $fgcolor;
                                 break;
                         }
-                        imagestring($im, $this->font, $x, $y, $chr, $textcolor);
+                        if ($styleLengths[$col] > 0) {
+                            imagestring($im, $this->font, $x, $y, $chr, $textcolor);
+                        }
                     }
                 }
             }
