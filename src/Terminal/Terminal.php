@@ -166,7 +166,6 @@ class Terminal {
     ) {
         /** @var Screen $screen */
         foreach ($this->screens as $screenNumber => $screen) {
-            $this->screenNumber = $screenNumber;
             $commands = $screen->getCommands();
             /** @var Command $command */
             foreach ($commands as $command) {
@@ -326,7 +325,7 @@ class Terminal {
             $consoleRow = new ConsoleRow("");
         }
         $consoleRow->addStyle($this->cursorCol, $style);
-        $this->console->setRow($this->cursorRow, $consoleRow);
+        $this->console->setRow($this->cursorRow, clone $consoleRow);
     }
 
     /**

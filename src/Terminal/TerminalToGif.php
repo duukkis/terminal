@@ -181,7 +181,6 @@ class TerminalToGif
                     foreach ($colstyles as $s){
                         $x = $this->margin + $col * $this->fontWidth;
                         $chr = substr($row->output, $col, $styleLengths[$col]);
-                        $this->font = self::NORMAL_FONT;
                         switch (get_class($s)) {
                             case ColorStyle::class:
                                 /** @var $s ColorStyle */
@@ -201,6 +200,7 @@ class TerminalToGif
                                 $textcolor = $this->getColor($im, 0, 0, 255);
                                 break;
                             case ClearStyle::class:
+                                $this->font = self::NORMAL_FONT;
                                 $textcolor = $fgcolor;
                                 break;
                         }
