@@ -28,9 +28,4 @@ class Style
     {
         return $this->row;
     }
-
-    public function isSamePosition(Style $style): bool
-    {
-        return ($this->getCol() == $style->getCol() && $this->getRow() == $style->getRow());
-    }
 }

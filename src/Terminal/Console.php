@@ -5,13 +5,17 @@ namespace Terminal;
 class Console
 {
 
+    private array $rows = [];
+
     public function __construct(array $rows = [])
     {
         $this->rows = $rows;
     }
 
-    private array $rows = [];
-
+    /**
+     * This will make a "deep-copy" from Console as we cannot set reference to these in Terminal
+     * @return Console
+     */
     public function copy(): Console
     {
         $newRows = [];
@@ -32,9 +36,13 @@ class Console
         return $consoleRow;
     }
 
-    public function getRow(int $row): ConsoleRow
+    /**
+     * @param int $row
+     * @return ConsoleRow|null
+     */
+    public function getRow(int $row): ?ConsoleRow
     {
-        return (isset($this->rows[$row])) ? $this->rows[$row] : new ConsoleRow("");
+        return (isset($this->rows[$row])) ? $this->rows[$row] : null;
     }
 
     public function getLastLine(): int

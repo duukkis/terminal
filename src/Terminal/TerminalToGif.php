@@ -175,6 +175,7 @@ class TerminalToGif
                 imagestring($im, $this->font, $x, $y, $text, $textcolor);
                 // then write the colors on top of normals
                 $styles = $row->getStyles();
+                ksort($styles);
                 $styleLengths = $row->getStyleLengths();
                 // print styles from col to col
                 foreach ($styles as $col => $colstyles) {

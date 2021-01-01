@@ -18,6 +18,10 @@ class ConsoleRow
         $this->styles = $styles;
     }
 
+    /**
+     * Will make a deep-copy from row
+     * @return ConsoleRow
+     */
     public function copy(): ConsoleRow
     {
         return new ConsoleRow($this->output, $this->styles);
@@ -55,11 +59,6 @@ class ConsoleRow
         $this->styles = array_filter($this->styles, function($k) use ($before, $after) {
             return ($k >= $after && $k <= $before);
         }, ARRAY_FILTER_USE_KEY);
-    }
-
-    public function removeStyles(int $before)
-    {
-        $this->styles = $this->getStyles($before);
     }
 
     public function addStyle(int $col, Style $style)
