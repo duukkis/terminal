@@ -7,7 +7,7 @@ use Terminal\Style\Style;
 class ConsoleRow
 {
     public string $output;
-    private array $styles = [];
+    private array $styles;
 
     const MIN = 0;
     const MAX = 10000;
@@ -74,19 +74,19 @@ class ConsoleRow
     public function getStyleLengths(): array
     {
         $result = [];
-        $previousSettedIndex = null;
-        $settedIndexes = array_keys($this->styles);
-        if (!empty($settedIndexes)) {
-            sort($settedIndexes);
-            foreach ($settedIndexes as $index) {
-                if ($previousSettedIndex == null) {
-                    $previousSettedIndex = $index;
+        $previousSetIndex = null;
+        $setIndexes = array_keys($this->styles);
+        if (!empty($setIndexes)) {
+            sort($setIndexes);
+            foreach ($setIndexes as $index) {
+                if ($previousSetIndex == null) {
+                    $previousSetIndex = $index;
                 } else {
-                    $result[$previousSettedIndex] = ($index - $previousSettedIndex);
-                    $previousSettedIndex = $index;
+                    $result[$previousSetIndex] = ($index - $previousSetIndex);
+                    $previousSetIndex = $index;
                 }
             }
-            $result[$previousSettedIndex] = 0;
+            $result[$previousSetIndex] = 0;
         }
         return $result;
     }

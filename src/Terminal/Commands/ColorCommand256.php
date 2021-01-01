@@ -1,6 +1,8 @@
 <?php
 namespace Terminal\Commands;
 
+use InvalidArgumentException;
+
 class ColorCommand256 extends Command
 {
     // color 256
@@ -54,19 +56,19 @@ class ColorCommand256 extends Command
     public function __construct(int $color, bool $background, string $output)
     {
         if ($color < 0 || $color > 255) {
-            throw new \InvalidArgumentException($color);
+            throw new InvalidArgumentException($color);
         }
         $this->color = $color;
         $this->background = $background;
         parent::__construct($output);
     }
 
-    public function isForeground()
+    public function isForeground(): bool
     {
         return !$this->isBackground();
     }
 
-    public function isBackground()
+    public function isBackground(): bool
     {
         return $this->background;
     }

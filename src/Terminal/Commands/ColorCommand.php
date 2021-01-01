@@ -22,12 +22,12 @@ class ColorCommand extends Command
         parent::__construct($output);
     }
 
-    public function isForeground()
+    public function isForeground(): bool
     {
         return !$this->isBackground();
     }
 
-    public function isBackground()
+    public function isBackground(): bool
     {
         return $this->background;
     }

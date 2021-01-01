@@ -2,6 +2,8 @@
 
 namespace Terminal\Commands;
 
+use InvalidArgumentException;
+
 class AddStyleCommand extends Command
 {
     private string $style;
@@ -18,12 +20,12 @@ class AddStyleCommand extends Command
      * AddStyleCommand constructor.
      * @param string $output
      * @param string $style
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function __construct(string $output, string $style)
     {
         if (!in_array($style, self::ALLOWED)) {
-            throw new \InvalidArgumentException($style);
+            throw new InvalidArgumentException($style);
         }
         $this->style = $style;
         parent::__construct($output);

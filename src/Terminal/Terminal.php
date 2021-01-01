@@ -210,6 +210,7 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case OutputCommand::class:
+                    case IgnoreCommand::class:
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case MoveCursorHomeCommand::class:
@@ -229,9 +230,6 @@ class Terminal {
                         if ($command->up) {
                             $this->console->clearRowsUpFrom($this->cursorRow);
                         }
-                        break;
-                    case IgnoreCommand::class:
-                        $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case AddStyleCommand::class:
                         $style = $this->getStyle($command);
@@ -335,7 +333,6 @@ class Terminal {
 
     private function addStyleToConsoleRow(Style $style)
     {
-        /** @var ConsoleRow $consoleRow */
         $consoleRow = $this->console->getRow($this->cursorRow);
         $consoleRow->addStyle($this->cursorCol, $style);
         $this->console->setRow($this->cursorRow, $consoleRow);
@@ -375,6 +372,7 @@ class Terminal {
      * Debugger that writes items into temp files with commands
      * @param int $index
      * @param array $commands
+     * @param bool $commandsToDebug
      */
     private function linesToFiles(int $index, array $commands, bool $commandsToDebug){
       $lastLine = $this->console->getLastLine();
@@ -383,7 +381,6 @@ class Terminal {
       for ($i = 0;$i <= $lastLine;$i++) {
         $row = $this->console->getRow($i);
         if ($row !== null) {
-          /** @var ConsoleRow $row */
           $data .= $row->output;
           $s = $row->getStyles();
           if (!empty($s)) {
