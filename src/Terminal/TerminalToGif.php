@@ -161,10 +161,11 @@ class TerminalToGif
     public function createImageWithStyles()
     {
         $im = imagecreate($this->imageWidth, $this->imageHeight);
-        $this->setBackgroundColor($im);
+        $bgcolor = $this->setBackgroundColor($im);
         $fgcolor = $this->getForegroundColor($im);
         $textcolor = $fgcolor;
         for ($i = 1; $i <= $this->rows; $i++) {
+            /** @var ConsoleRow $row */
             $row = $this->console->getRow($i);
             if (null !== $row) {
                 $text = $row->output;
@@ -184,7 +185,11 @@ class TerminalToGif
                         switch (get_class($s)) {
                             case ColorStyle::class:
                                 /** @var $s ColorStyle */
-                                $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
+                                if ($s->red != $this->bgColor["r"] ||
+                                    $s->green != $this->bgColor["g"] ||
+                                    $s->blue != $this->bgColor["b"]) {
+                                    $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
+                                }
                                 break;
                             case BoldStyle::class:
                                 /** @var $s BoldStyle */
@@ -193,11 +198,17 @@ class TerminalToGif
                                 break;
                             case UnderlineStyle::class:
                                 /** @var $s UnderlineStyle */
-                                $textcolor = $this->getColor($im, 0, 255, 0);
+                                $textcolor = $fgcolor;
                                 break;
                             case ReverseStyle::class:
                                 /** @var $s ReverseStyle */
-                                $textcolor = $this->getColor($im, 0, 0, 255);
+                                $textcolor = $bgcolor;
+                                imagefilledrectangle(
+                                    $im, $x, $y,
+                                    $x + $this->fontWidth * $styleLengths[$col],
+                                    $y + $this->fontHeight,
+                                    $fgcolor
+                                );
                                 break;
                             case ClearStyle::class:
                                 $this->font = self::NORMAL_FONT;

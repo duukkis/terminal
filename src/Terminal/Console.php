@@ -5,7 +5,22 @@ namespace Terminal;
 class Console
 {
 
+    public function __construct(array $rows = [])
+    {
+        $this->rows = $rows;
+    }
+
     private array $rows = [];
+
+    public function copy(): Console
+    {
+        $newRows = [];
+        /** @var ConsoleRow $row */
+        foreach ($this->rows as $index => $row) {
+            $newRows[$index] = $row->copy();
+        }
+        return new Console($newRows);
+    }
 
     public function setRow(int $row, ConsoleRow $consoleRow): ConsoleRow
     {
@@ -17,12 +32,12 @@ class Console
         return $consoleRow;
     }
 
-    public function getRow(int $row): ?ConsoleRow
+    public function getRow(int $row): ConsoleRow
     {
-        return (isset($this->rows[$row])) ? $this->rows[$row] : null;
+        return (isset($this->rows[$row])) ? $this->rows[$row] : new ConsoleRow("");
     }
 
-    public function getMaxIndex(): int
+    public function getLastLine(): int
     {
         return (!empty($this->rows)) ? max(array_keys($this->rows)) : 0;
     }

@@ -12,14 +12,25 @@ class ConsoleRow
     const MIN = 0;
     const MAX = 10000;
 
-    public function __construct(string $output)
+    public function __construct(string $output, array $styles = [])
     {
         $this->output = $output;
+        $this->styles = $styles;
+    }
+
+    public function copy(): ConsoleRow
+    {
+        return new ConsoleRow($this->output, $this->styles);
     }
 
     public function getOutputTo(int $col): string
     {
         return substr($this->output, 0, $col);
+    }
+
+    public function setOutputTo(int $col): void
+    {
+        $this->output = substr($this->output, 0, $col);
     }
 
     public function getOutputFrom(int $col): string
@@ -29,7 +40,7 @@ class ConsoleRow
 
     public function isEmpty(): bool
     {
-        return (empty(trim($this->output)) && empty($this->styles));
+        return (empty($this->output) && empty($this->styles));
     }
 
     public function getStyles(?int $before = self::MAX, ?int $after = self::MIN): array
@@ -39,9 +50,16 @@ class ConsoleRow
         }, ARRAY_FILTER_USE_KEY);
     }
 
-    public function addStyles(array $styles)
+    public function setStyles(?int $before = self::MAX, ?int $after = self::MIN): void
     {
-        $this->styles = $styles;
+        $this->styles = array_filter($this->styles, function($k) use ($before, $after) {
+            return ($k >= $after && $k <= $before);
+        }, ARRAY_FILTER_USE_KEY);
+    }
+
+    public function removeStyles(int $before)
+    {
+        $this->styles = $this->getStyles($before);
     }
 
     public function addStyle(int $col, Style $style)
