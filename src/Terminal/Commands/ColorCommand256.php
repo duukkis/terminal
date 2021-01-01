@@ -53,6 +53,9 @@ class ColorCommand256 extends Command
 
     public function __construct(int $color, bool $background, string $output)
     {
+        if ($color < 0 || $color > 255) {
+            throw new \InvalidArgumentException($color);
+        }
         $this->color = $color;
         $this->background = $background;
         parent::__construct($output);
@@ -68,6 +71,10 @@ class ColorCommand256 extends Command
         return $this->background;
     }
 
+    /**
+     * see https://jonasjacek.github.io/colors/
+     * @return array|int[]
+     */
     public function colorToRGB(): array
     {
         $i = $this->color;
@@ -77,18 +84,18 @@ class ColorCommand256 extends Command
         } else if ($i > 231){
             $splitted = str_split(self::COLORS_GRAYSCALE[$i], 2);
             return ["r" => hexdec($splitted[0]), "g" => hexdec($splitted[1]), "b" => hexdec($splitted[2])];
-        } else {
+        } else { // map to 216 colors
             $i = $i - 16;
             $b = $i % 6;
-            $b = ($b > 0) ? ($b - 1) * 40 + 95 : 0;
+            $b = (int) ($b > 0) ? ($b - 1) * 40 + 95 : 0;
 
             $i = floor($i / 6);
             $g = $i % 6;
-            $g = ($g > 0) ? ($g - 1) * 40 + 95 : 0;
+            $g = (int) ($g > 0) ? ($g - 1) * 40 + 95 : 0;
 
             $i = floor($i / 6);
             $r = $i % 6;
-            $r = ($r > 0) ? ($r - 1) * 40 + 95 : 0;
+            $r = (int) ($r > 0) ? ($r - 1) * 40 + 95 : 0;
             return ["r" => $r, "g" => $g, "b" => $b];
         }
     }

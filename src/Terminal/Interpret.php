@@ -280,11 +280,11 @@ class Interpret
             case self::TURN_ON_UNDERLINE:
                 return new AddStyleCommand($restThree, AddStyleCommand::UNDERLINE);
             case self::TURN_ON_BLINK:
-                return new AddStyleCommand($restThree, "SGR5 - Turn blinking mode on");
+                return new AddStyleCommand($restThree, AddStyleCommand::BLINK);
             case self::TURN_ON_REVERSE_VIDEO:
                 return new AddStyleCommand($restThree, AddStyleCommand::REVERSE);
             case self::TURN_ON_INVISIBLE_TEXT:
-                return new IgnoreCommand($restThree, "SGR8 - Turn invisible text mode on");
+                return new AddStyleCommand($restThree, AddStyleCommand::INVISIBLE);
             case self::CLEAR_LINE_FROM_RIGHT_2:
                 return new ClearLineCommand($restThree, true, false);
             case self::CLEAR_LINE_FROM_LEFT:
