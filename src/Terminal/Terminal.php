@@ -207,6 +207,7 @@ class Terminal {
                         if ($command->down) { $this->cursorRow++; }
                         if ($command->right) { $this->cursorCol++; }
                         if ($command->left) { $this->cursorCol--; }
+                        $this->clearStyleFromColumn($command->getOutput());
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case OutputCommand::class:
@@ -239,7 +240,7 @@ class Terminal {
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     case RemoveStyleCommand::class:
-                        $this->addStyleToConsoleRow(new ClearStyle($this->cursorRow, $this->cursorCol));
+                        $this->clearStyleFromConsoleRow(new ClearStyle($this->cursorRow, $this->cursorCol));
                         $this->parseOutputToTerminal($command->getOutput());
                         break;
                     default:
@@ -336,6 +337,13 @@ class Terminal {
             $existingRow->setStyles(ConsoleRow::MAX, $this->cursorCol);
             $this->console->setRow($this->cursorRow, $existingRow);
         }
+    }
+
+    private function clearStyleFromConsoleRow(ClearStyle $style)
+    {
+        $consoleRow = $this->console->getRow($this->cursorRow) ?? new ConsoleRow("");
+        $consoleRow->removeStyle($this->cursorCol, $style);
+        $this->console->setRow($this->cursorRow, $consoleRow);
     }
 
     private function addStyleToConsoleRow(Style $style)

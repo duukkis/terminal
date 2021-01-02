@@ -2,6 +2,7 @@
 
 namespace Terminal;
 
+use Terminal\Style\ClearStyle;
 use Terminal\Style\Style;
 
 class ConsoleRow
@@ -24,6 +25,18 @@ class ConsoleRow
      */
     public function copy(): ConsoleRow
     {
+        // clean up while copying
+        $allClear = true;
+        foreach ($this->styles as $styles) {
+            foreach ($styles as $style) {
+                if (get_class($style) !== ClearStyle::class) {
+                    $allClear = false;
+                }
+            }
+        }
+        if ($allClear) {
+            $this->styles = [];
+        }
         return new ConsoleRow($this->output, $this->styles);
     }
 
@@ -63,6 +76,12 @@ class ConsoleRow
 
     public function addStyle(int $col, Style $style)
     {
+        $this->styles[$col][] = $style;
+    }
+
+    public function removeStyle(int $col, ClearStyle $style)
+    {
+        $this->styles[$col] = [];
         $this->styles[$col][] = $style;
     }
 
