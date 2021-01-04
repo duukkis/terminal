@@ -179,6 +179,7 @@ class TerminalToGif
                 $styleLengths = $row->getStyleLengths();
                 // print styles from col to col
                 foreach ($styles as $col => $colstyles) {
+                    $reverse = false;
                     /** @var Style $s */
                     foreach ($colstyles as $s){
                         $x = $this->margin + $col * $this->fontWidth;
@@ -191,32 +192,39 @@ class TerminalToGif
                                     $s->blue != $this->bgColor["b"]) {
                                     $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
                                 }
+                                $reverse = false;
                                 break;
                             case BoldStyle::class:
                                 /** @var $s BoldStyle */
                                 $textcolor = $fgcolor;
                                 $this->font = self::BOLD_FONT;
+                                $reverse = false;
                                 break;
                             case UnderlineStyle::class:
                                 /** @var $s UnderlineStyle */
                                 $textcolor = $fgcolor;
+                                $reverse = false;
                                 break;
                             case ReverseStyle::class:
                                 /** @var $s ReverseStyle */
                                 $textcolor = $bgcolor;
+                                $reverse = true;
+                                break;
+                            case ClearStyle::class:
+                                $this->font = self::NORMAL_FONT;
+                                $textcolor = $fgcolor;
+                                $reverse = false;
+                                break;
+                        }
+                        if ($styleLengths[$col] > 0) {
+                            if ($reverse) {
                                 imagefilledrectangle(
                                     $im, $x, $y,
                                     $x + $this->fontWidth * $styleLengths[$col],
                                     $y + $this->fontHeight,
                                     $fgcolor
                                 );
-                                break;
-                            case ClearStyle::class:
-                                $this->font = self::NORMAL_FONT;
-                                $textcolor = $fgcolor;
-                                break;
-                        }
-                        if ($styleLengths[$col] > 0) {
+                            }
                             imagestring($im, $this->font, $x, $y, $chr, $textcolor);
                         }
                     }

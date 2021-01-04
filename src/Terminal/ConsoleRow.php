@@ -60,28 +60,51 @@ class ConsoleRow
         return (empty($this->output) && empty($this->styles));
     }
 
-    public function getStyles(?int $before = self::MAX, ?int $after = self::MIN): array
+    public function getStyles(): array
     {
-        return array_filter($this->styles, function($k) use ($before, $after) {
-            return ($k >= $after && $k <= $before);
+        return $this->styles;
+    }
+
+    public function setStylesBefore(int $before): void
+    {
+        $this->styles = array_filter($this->styles, function($k) use ($before) {
+            return ($k <= $before);
         }, ARRAY_FILTER_USE_KEY);
     }
 
-    public function setStyles(?int $before = self::MAX, ?int $after = self::MIN): void
+    public function setStylesAfter(int $after): void
     {
-        $this->styles = array_filter($this->styles, function($k) use ($before, $after) {
-            return ($k >= $after && $k <= $before);
+        $this->styles = array_filter($this->styles, function($k) use ($after) {
+            return ($k >= $after);
         }, ARRAY_FILTER_USE_KEY);
+    }
+
+    public function setBeforeAfterStyles(int $start, int $stop, int $screenNumber): void
+    {
+        foreach ($this->styles as $col => $arr) {
+            if ($col >= $start && $col <= $stop) {
+                /** @var Style $style */
+                foreach ($this->styles[$col] as $i => $style) {
+                    if ($style->getScreenNumber() != $screenNumber) {
+                        unset($this->styles[$col][$i]);
+                    }
+                }
+                if (!empty($this->styles[$col])) {
+                    $this->styles[$col] = array_values($this->styles[$col]);
+                } else {
+                    unset($this->styles[$col]);
+                }
+            }
+        }
+    }
+
+    public function clearStyles(): void
+    {
+        $this->styles = [];
     }
 
     public function addStyle(int $col, Style $style)
     {
-        $this->styles[$col][] = $style;
-    }
-
-    public function removeStyle(int $col, ClearStyle $style)
-    {
-        $this->styles[$col] = [];
         $this->styles[$col][] = $style;
     }
 
