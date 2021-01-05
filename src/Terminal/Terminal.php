@@ -20,12 +20,7 @@ use Terminal\Commands\MoveCursorHomeCommand;
 use Terminal\Commands\NewlineCommand;
 use Terminal\Commands\OutputCommand;
 use Terminal\Commands\RemoveStyleCommand;
-use Terminal\Style\BoldStyle;
-use Terminal\Style\ClearStyle;
-use Terminal\Style\ColorStyle;
-use Terminal\Style\ReverseStyle;
 use Terminal\Style\Style;
-use Terminal\Style\UnderlineStyle;
 
 class Terminal {
 
@@ -168,6 +163,7 @@ class Terminal {
     ) {
         /** @var Screen $screen */
         foreach ($this->screens as $screenNumber => $screen) {
+            $style = null;
             $commands = $screen->getCommands();
             /** @var Command $command */
             foreach ($commands as $command) {
@@ -219,7 +215,7 @@ class Terminal {
                         break;
                     case ColorCommand::class:
                     case ColorCommand256::class:
-                        $this->addStyleToConsoleRow($this->getStyle($command, $screenNumber));
+                        $style = $this->getStyle($command, $screenNumber, $style);
                         $this->parseOutputToTerminal($command->getOutput(), $screenNumber);
                         break;
                     case ClearScreenFromCursorCommand::class:
@@ -231,16 +227,15 @@ class Terminal {
                         }
                         break;
                     case AddStyleCommand::class:
-                        $style = $this->getStyle($command, $screenNumber);
-                        if ($style !== null) {
-                            $this->addStyleToConsoleRow($style);
-                        }
+                        $style = $this->getStyle($command, $screenNumber, $style);
                         $this->parseOutputToTerminal($command->getOutput(), $screenNumber);
                         break;
                     case RemoveStyleCommand::class:
-                        $this->addStyleToConsoleRow(
-                            new ClearStyle($this->cursorRow, $this->cursorCol, $screenNumber)
-                        );
+                        if ($style != null && !$style->isClosed()) {
+                            $style->setEnd($this->cursorCol);
+                            $this->addStyleToConsoleRow($style);
+                            $style = null;
+                        }
                         $this->parseOutputToTerminal($command->getOutput(), $screenNumber);
                         break;
                     default:
@@ -265,24 +260,24 @@ class Terminal {
      * @param Command $styleCommand
      * @return Style
      */
-    private function getStyle(Command $styleCommand, int $screenNumber): ?Style
+    private function getStyle(Command $styleCommand, int $screenNumber, ?Style $style): ?Style
     {
+        if ($style == null) {
+            $style = new Style($this->cursorRow, $this->cursorCol, $screenNumber);
+        }
         if (get_class($styleCommand) === AddStyleCommand::class) {
             /** @var $styleCommand AddStyleCommand */
             if ($styleCommand->getStyle() === AddStyleCommand::BOLD) {
-                return new BoldStyle($this->cursorRow, $this->cursorCol, $screenNumber);
+                $style->setBold();
             } elseif ($styleCommand->getStyle() === AddStyleCommand::UNDERLINE) {
-                return new UnderlineStyle($this->cursorRow, $this->cursorCol, $screenNumber);
+                $style->setUnderline();
             } elseif ($styleCommand->getStyle() === AddStyleCommand::REVERSE) {
-                return new ReverseStyle($this->cursorRow, $this->cursorCol, $screenNumber);
+                $style->setReverse();
             }
         } elseif (get_class($styleCommand) === ColorCommand::class) {
             /** @var $styleCommand ColorCommand */
             $colors = $styleCommand->colorToRGB();
-            return new ColorStyle(
-                $this->cursorRow,
-                $this->cursorCol,
-                $screenNumber,
+            $style->setColor(
                 $colors["r"],
                 $colors["g"],
                 $colors["b"],
@@ -291,10 +286,7 @@ class Terminal {
         } elseif (get_class($styleCommand) === ColorCommand256::class) {
             /** @var $styleCommand ColorCommand256 */
             $colors = $styleCommand->colorToRGB();
-            return new ColorStyle(
-                $this->cursorRow,
-                $this->cursorCol,
-                $screenNumber,
+            $style->setColor(
                 $colors["r"],
                 $colors["g"],
                 $colors["b"],
@@ -302,7 +294,7 @@ class Terminal {
             );
         }
         // invisible and blink will return null
-        return null;
+        return $style;
     }
 
     private function clearLine(bool $clearLineFromRight = false, bool $clearLineFromLeft = false) {
@@ -330,7 +322,7 @@ class Terminal {
     private function addStyleToConsoleRow(Style $style)
     {
         $consoleRow = $this->console->getRow($this->cursorRow) ?? new ConsoleRow("");
-        $consoleRow->addStyle($this->cursorCol, $style);
+        $consoleRow->addStyle($style->start, $style);
         $this->console->setRow($this->cursorRow, $consoleRow);
     }
 
@@ -386,7 +378,6 @@ class Terminal {
           $s = $row->getStyles();
           if (!empty($s)) {
               $styles .= "ROW ".$i . PHP_EOL . print_r($s, true);
-              $styles .= PHP_EOL . print_r($row->getStyleLengths(), true);
           }
         }
         $data .= PHP_EOL;

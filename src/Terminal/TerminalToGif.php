@@ -2,12 +2,7 @@
 
 namespace Terminal;
 
-use Terminal\Style\BoldStyle;
-use Terminal\Style\ClearStyle;
-use Terminal\Style\ColorStyle;
-use Terminal\Style\ReverseStyle;
 use Terminal\Style\Style;
-use Terminal\Style\UnderlineStyle;
 
 class TerminalToGif
 {
@@ -172,61 +167,47 @@ class TerminalToGif
                 $x = $this->margin;
                 $y = $i * $this->fontHeight + $this->margin;
                 // first write the normal
+                $this->font = self::NORMAL_FONT;
+                $textcolor = $fgcolor;
+
                 imagestring($im, $this->font, $x, $y, $text, $textcolor);
                 // then write the colors on top of normals
                 $styles = $row->getStyles();
                 ksort($styles);
-                $styleLengths = $row->getStyleLengths();
+                // $styleLengths = $row->getStyleLengths();
                 // print styles from col to col
                 foreach ($styles as $col => $colstyles) {
-                    $reverse = false;
                     /** @var Style $s */
-                    foreach ($colstyles as $s){
+                    foreach ($colstyles as $s) {
+                        $reverse = false;
+                        $this->font = self::NORMAL_FONT;
+                        $textcolor = $fgcolor;
+
                         $x = $this->margin + $col * $this->fontWidth;
-                        $chr = substr($row->output, $col, $styleLengths[$col]);
-                        switch (get_class($s)) {
-                            case ColorStyle::class:
-                                /** @var $s ColorStyle */
-                                if ($s->red != $this->bgColor["r"] ||
-                                    $s->green != $this->bgColor["g"] ||
-                                    $s->blue != $this->bgColor["b"]) {
-                                    $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
-                                }
-                                $reverse = false;
-                                break;
-                            case BoldStyle::class:
-                                /** @var $s BoldStyle */
-                                $textcolor = $fgcolor;
-                                $this->font = self::BOLD_FONT;
-                                $reverse = false;
-                                break;
-                            case UnderlineStyle::class:
-                                /** @var $s UnderlineStyle */
-                                $textcolor = $fgcolor;
-                                $reverse = false;
-                                break;
-                            case ReverseStyle::class:
-                                /** @var $s ReverseStyle */
-                                $textcolor = $bgcolor;
-                                $reverse = true;
-                                break;
-                            case ClearStyle::class:
-                                $this->font = self::NORMAL_FONT;
-                                $textcolor = $fgcolor;
-                                $reverse = false;
-                                break;
+                        $chr = substr($row->output, $col, $s->getLength());
+                        if ($s->reverse) {
+                            $textcolor = $bgcolor;
+                            $reverse = true;
                         }
-                        if ($styleLengths[$col] > 0) {
-                            if ($reverse) {
-                                imagefilledrectangle(
-                                    $im, $x, $y,
-                                    $x + $this->fontWidth * $styleLengths[$col],
-                                    $y + $this->fontHeight,
-                                    $fgcolor
-                                );
+                        if ($s->colorSet) {
+                            if ($s->red != $this->bgColor["r"] ||
+                                $s->green != $this->bgColor["g"] ||
+                                $s->blue != $this->bgColor["b"]) {
+                                $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
                             }
-                            imagestring($im, $this->font, $x, $y, $chr, $textcolor);
                         }
+                        if ($s->bold) {
+                            $this->font = self::BOLD_FONT;
+                        }
+                        if ($reverse) {
+                            imagefilledrectangle(
+                                $im, $x, $y,
+                                $x + $this->fontWidth * $s->getLength(),
+                                $y + $this->fontHeight,
+                                $fgcolor
+                            );
+                        }
+                        imagestring($im, $this->font, $x, $y, $chr, $textcolor);
                     }
                 }
             }
