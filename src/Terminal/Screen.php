@@ -10,7 +10,7 @@ class Screen
     public string $screen;
     public array $commands;
     // console presenting the console in Terminal
-    public array $console;
+    public Console $console;
 
     public function __construct(int $sec, int $usec, int $len, string $screen)
     {
@@ -26,12 +26,12 @@ class Screen
         return $this->commands;
     }
 
-    public function setConsole(array $console): void
+    public function setConsole(Console $console): void
     {
         $this->console = $console;
     }
 
-    public function getConsole(): array
+    public function getConsole(): Console
     {
         return $this->console;
     }

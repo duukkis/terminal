@@ -1,6 +1,7 @@
 <?php
 namespace Terminal;
 
+use Terminal\Commands\AddStyleCommand;
 use Terminal\Commands\BackspaceCommand;
 use Terminal\Commands\CarriageReturnCommand;
 use Terminal\Commands\ClearLineCommand;
@@ -16,6 +17,7 @@ use Terminal\Commands\MoveArrowCommand;
 use Terminal\Commands\MoveCursorHomeCommand;
 use Terminal\Commands\NewlineCommand;
 use Terminal\Commands\OutputCommand;
+use Terminal\Commands\RemoveStyleCommand;
 
 class Interpret
 {
@@ -90,7 +92,7 @@ class Interpret
 
     const Z_IGNORE = "/\[([0-9;]+)z/";
 
-  const PRIVATE_MODE_SET_PREG = "/\[?([0-9]+)h/";
+    const PRIVATE_MODE_SET_PREG = "/\[?([0-9]+)h/";
     const PRIVATE_MODE_RESET_PREG = "/\[?([0-9]+)l/";
 
     const CHARACTER_SETS = [
@@ -169,12 +171,6 @@ class Interpret
         if (1 == preg_match(self::Z_IGNORE, $command, $matches)) {
             return new OutputCommand(substr($command, strlen($matches[0])));
         }
-        // this matches all m-commands
-        if (1 == preg_match(self::GRAPHIC_ATTRIBUTION_PREG, $command, $matches)) {
-            // todo - 0 attribs off, 1 - bold, 4 - underscore, 5 - blink, 7 - negative
-            $output = substr($command, strlen($matches[0])+1);
-            return new IgnoreCommand($output, "Decorate " . $matches[0]);
-        }
         if (1 == preg_match(self::SCROLLING_REGION_PREG, $command, $matches)) {
             $output = substr($command, strlen($matches[0]));
             return new IgnoreCommand("", "Scrolling region top,bottom " . $matches[1] . "," . $matches[2]);
@@ -248,6 +244,23 @@ class Interpret
                 break;
         }
 
+        // this matches all m-commands
+        if (1 == preg_match(self::GRAPHIC_ATTRIBUTION_PREG, $command, $matches)) {
+            // todo - 0 attribs off, 1 - bold, 4 - underscore, 5 - blink, 7 - negative
+            $output = substr($command, strlen($matches[0])+1);
+            switch ($matches[0]) {
+                case 0:
+                    return new RemoveStyleCommand($output);
+                case 1:
+                    return new AddStyleCommand($output, AddStyleCommand::BOLD);
+                case 4:
+                    return new AddStyleCommand($output, AddStyleCommand::UNDERLINE);
+                case 7:
+                    return new AddStyleCommand($output, AddStyleCommand::REVERSE);
+            }
+            return new IgnoreCommand($output, "Decorate " . $matches[0]);
+        }
+
         $partThree = substr($command, 0, 3);
         $restThree = substr($command, 3);
 
@@ -259,19 +272,19 @@ class Interpret
             case self::CLEAR_SCREEN:
                 return new ClearScreenCommand($restThree);
             case self::TURN_OFF_CHARACTER_ATTRIBUTES:
-                return new IgnoreCommand($restThree, "SGR0 - Turn off character attributes");
+                return new RemoveStyleCommand($restThree);
             case self::TURN_ON_BOLD:
-                return new IgnoreCommand($restThree, "SGR1 - Turn bold mode on");
+                return new AddStyleCommand($restThree, AddStyleCommand::BOLD);
             case self::TURN_ON_LOW_INTENSITY:
                 return new IgnoreCommand($restThree, "SGR2 - Turn low intensity mode on");
             case self::TURN_ON_UNDERLINE:
-                return new IgnoreCommand($restThree, "SGR4 - Turn underline mode on");
+                return new AddStyleCommand($restThree, AddStyleCommand::UNDERLINE);
             case self::TURN_ON_BLINK:
-                return new IgnoreCommand($restThree, "SGR5 - Turn blinking mode on");
+                return new AddStyleCommand($restThree, AddStyleCommand::BLINK);
             case self::TURN_ON_REVERSE_VIDEO:
-                return new IgnoreCommand($restThree, "SGR7 - Turn reverse video on");
+                return new AddStyleCommand($restThree, AddStyleCommand::REVERSE);
             case self::TURN_ON_INVISIBLE_TEXT:
-                return new IgnoreCommand($restThree, "SGR8 - Turn invisible text mode on");
+                return new AddStyleCommand($restThree, AddStyleCommand::INVISIBLE);
             case self::CLEAR_LINE_FROM_RIGHT_2:
                 return new ClearLineCommand($restThree, true, false);
             case self::CLEAR_LINE_FROM_LEFT:
@@ -308,7 +321,7 @@ class Interpret
             case self::CARRIAGE_RETURN:
                 return new CarriageReturnCommand($restTwo);
             case self::TURN_OFF_CHARACTER_ATTRIBUTES_2:
-                return new IgnoreCommand($restThree, "SGR0 - Turn off character attributes");
+                return new RemoveStyleCommand($restThree);
             default:
                 break;
         }
