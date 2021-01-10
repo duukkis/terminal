@@ -176,39 +176,37 @@ class TerminalToGif
                 ksort($styles);
                 // $styleLengths = $row->getStyleLengths();
                 // print styles from col to col
-                foreach ($styles as $col => $colstyles) {
-                    /** @var Style $s */
-                    foreach ($colstyles as $s) {
-                        $reverse = false;
-                        $this->font = self::NORMAL_FONT;
-                        $textcolor = $fgcolor;
+                /** @var Style $s */
+                foreach ($styles as $col => $s) {
+                    $reverse = false;
+                    $this->font = self::NORMAL_FONT;
+                    $textcolor = $fgcolor;
 
-                        $x = $this->margin + $col * $this->fontWidth;
-                        $chr = substr($row->output, $col, $s->getLength());
-                        if ($s->reverse) {
-                            $textcolor = $bgcolor;
-                            $reverse = true;
-                        }
-                        if ($s->colorSet) {
-                            if ($s->red != $this->bgColor["r"] ||
-                                $s->green != $this->bgColor["g"] ||
-                                $s->blue != $this->bgColor["b"]) {
-                                $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
-                            }
-                        }
-                        if ($s->bold) {
-                            $this->font = self::BOLD_FONT;
-                        }
-                        if ($reverse) {
-                            imagefilledrectangle(
-                                $im, $x, $y,
-                                $x + $this->fontWidth * $s->getLength(),
-                                $y + $this->fontHeight,
-                                $fgcolor
-                            );
-                        }
-                        imagestring($im, $this->font, $x, $y, $chr, $textcolor);
+                    $x = $this->margin + $col * $this->fontWidth;
+                    $chr = substr($row->output, $col, $s->getLength());
+                    if ($s->reverse) {
+                        $textcolor = $bgcolor;
+                        $reverse = true;
                     }
+                    if ($s->colorSet) {
+                        if ($s->red != $this->bgColor["r"] ||
+                            $s->green != $this->bgColor["g"] ||
+                            $s->blue != $this->bgColor["b"]) {
+                            $textcolor = $this->getColor($im, $s->red, $s->green, $s->blue);
+                        }
+                    }
+                    if ($s->bold) {
+                        $this->font = self::BOLD_FONT;
+                    }
+                    if ($reverse) {
+                        imagefilledrectangle(
+                            $im, $x, $y,
+                            $x + $this->fontWidth * $s->getLength(),
+                            $y + $this->fontHeight,
+                            $fgcolor
+                        );
+                    }
+                    imagestring($im, $this->font, $x, $y, $chr, $textcolor);
                 }
             }
         }

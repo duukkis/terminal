@@ -19,7 +19,7 @@ class Style
 
     // the style is closed with removeStyleCommand
     public int $start = -1;
-    private int $end = -1;
+    public int $end = -1;
 
     public function __construct(int $row, int $start, int $screenNumber)
     {

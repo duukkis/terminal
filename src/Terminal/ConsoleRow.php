@@ -69,19 +69,16 @@ class ConsoleRow
 
     public function setBeforeAfterStyles(int $start, int $stop, int $screenNumber): void
     {
-        foreach ($this->styles as $col => $arr) {
-            if ($col >= $start && $col <= $stop) {
-                /** @var Style $style */
-                foreach ($this->styles[$col] as $i => $style) {
-                    if ($style->getScreenNumber() != $screenNumber) {
-                        unset($this->styles[$col][$i]);
-                    }
-                }
-                if (!empty($this->styles[$col])) {
-                    $this->styles[$col] = array_values($this->styles[$col]);
-                } else {
-                    unset($this->styles[$col]);
-                }
+        /** @var Style $style */
+        foreach ($this->styles as $col => $style) {
+            if (
+                $style->getScreenNumber() != $screenNumber &&
+                (
+                    ($style->start >= $start && $style->start <= $stop) ||
+                    ($style->end >= $start && $style->end <= $stop)
+                )
+            ){
+                unset($this->styles[$col]);
             }
         }
     }
@@ -93,6 +90,6 @@ class ConsoleRow
 
     public function addStyle(int $col, Style $style)
     {
-        $this->styles[$col][] = $style;
+        $this->styles[$col] = $style;
     }
 }
