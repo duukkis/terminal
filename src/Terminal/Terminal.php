@@ -175,6 +175,7 @@ class Terminal {
                         break;
                     case BackspaceCommand::class:
                         $this->cursorCol--;
+                        $this->parseOutputToTerminal($command->output, $screenNumber);
                         break;
                     case EraseCharactersCommand::class:
                         $this->parseOutputToTerminal($command->output, $screenNumber);
